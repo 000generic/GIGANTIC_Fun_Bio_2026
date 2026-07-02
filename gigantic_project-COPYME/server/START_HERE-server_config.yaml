@@ -72,6 +72,7 @@ subproject_order:
   - orthogroups
   - phylonames
   - secretome
+  - sequence_groups_X_species
   - trees_gene_families
   - trees_gene_groups
   - trees_species
