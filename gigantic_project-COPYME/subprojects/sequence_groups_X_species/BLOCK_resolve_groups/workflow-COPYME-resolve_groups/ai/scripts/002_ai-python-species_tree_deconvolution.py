@@ -180,6 +180,12 @@ def main():
     # structures), so the per-structure re-layout (2 x 105 files) is optional.
     emit_per_structure = bool( config.get( "emit_per_structure", False ) )
 
+    # Optional per-group attributes carried (opaque) after SequenceGroup_ID; reserve the
+    # engine's own identity/count columns so they are never duplicated.
+    carried_headers, group_ids___carried_cells = U.load_group_attributes(
+        workflow_root, config, { "SequenceGroup_ID", "Sequence_Count", "Species_Count" } )
+    empty_carried = [ '' ] * len( carried_headers )
+
     output_base = Path( args.output_dir )
     membership_path = output_base / "1-output" / f"1_ai-{group_set_label}-sequence_group_membership.tsv"
     clade_map_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "clade_species_mappings" ] )
@@ -228,11 +234,12 @@ def main():
         return ( f"{clade} (member-{unit} count of this sequence group within clade {clade}; "
                  f"{clades___descendant_count[ clade ]} descendant species; {present})" )
 
-    fixed_header = [
-        "SequenceGroup_ID (identifier of the sequence group from the producer)",
-        "Sequence_Count (number of member sequences in this group)",
-        "Species_Count (number of distinct member species in this group)",
-    ]
+    fixed_header = (
+        [ "SequenceGroup_ID (identifier of the sequence group from the producer)" ]
+        + carried_headers
+        + [ "Sequence_Count (number of member sequences in this group)",
+            "Species_Count (number of distinct member species in this group)" ]
+    )
 
     # ---- open the union + per-structure files for BOTH units ----------------
     units = ( "sequences", "species" )
@@ -280,7 +287,8 @@ def main():
                        f"({clades___species_counts.get( clade, 0 )}) != Species_Count {species_count}", file = sys.stderr )
                 sys.exit( 1 )
 
-        prefix = [ sequence_group_id, str( sequence_count ), str( species_count ) ]
+        carried = group_ids___carried_cells.get( sequence_group_id, empty_carried )
+        prefix = [ sequence_group_id ] + carried + [ str( sequence_count ), str( species_count ) ]
         clades___counts_by_unit = { "sequences": clades___sequence_counts, "species": clades___species_counts }
         for unit in units:
             clades___counts = clades___counts_by_unit[ unit ]

@@ -102,10 +102,50 @@ def read_gene_families( producer_membership_path: Path ):
                 yield ( sequence_group_id, sequence_identifier, genus_species )
 
 
+def read_gene_groups( producer_membership_path: Path ):
+    """
+    Yield ( sequence_group_id, sequence_identifier, genus_species ) from ONE gene-groups
+    instance's homolog-discovery tree (e.g. gene_groups-hugo_hgnc, gene_groups-snap_family).
+
+    producer_membership_path is the instance root; under it each gene group lives in its
+    own 'gene_group-<name>/' directory holding an AGS (All Gene Set) FASTA. The gene-group
+    name (from the enclosing 'gene_group-<name>' directory) is the SequenceGroup_ID; each
+    FASTA header (a full GIGANTIC id) is a member (Genus_species parsed from its
+    '-n_<phyloname>'). AGS files are matched as
+    '<instance>/**/gene_group-<name>/**/16_ai-ags-*.aa'.
+
+    This is deliberately its own reader (not shared with read_gene_families): gene groups
+    carry the extra 'gene_group-<name>/' wrapper directory that names the group, and the
+    two producers are separate subprojects whose input layouts are allowed to diverge.
+    """
+    root = Path( producer_membership_path )
+    ags_files = sorted( root.glob( "**/gene_group-*/**/16_ai-ags-*.aa" ) )
+    for ags_file in ags_files:
+        # The gene-group name is the enclosing 'gene_group-<name>' directory (stable even
+        # if the AGS filename convention changes); fall back to the AGS's own descriptor.
+        sequence_group_id = ""
+        for parent in ags_file.parents:
+            if parent.name.startswith( "gene_group-" ):
+                sequence_group_id = parent.name[ len( "gene_group-" ): ]
+                break
+        if not sequence_group_id:
+            sequence_group_id = ags_file.stem.replace( "16_ai-ags-", "" )
+        with open( ags_file, 'r' ) as input_fasta:
+            for line in input_fasta:
+                if not line.startswith( '>' ):
+                    continue
+                sequence_identifier = line[ 1: ].strip().split()[ 0 ]
+                genus_species = U.genus_species_from_full_id( sequence_identifier )
+                if not genus_species:
+                    continue   # RGS reference seed (no -n_<phyloname>) -- not a species-tree member
+                yield ( sequence_group_id, sequence_identifier, genus_species )
+
+
 PRODUCER_READERS = {
     "orthogroups": read_orthogroups,
     "annogroups": read_annogroups,
     "gene_families": read_gene_families,
+    "gene_groups": read_gene_groups,
 }
 
 

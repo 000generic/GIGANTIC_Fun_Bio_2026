@@ -60,6 +60,12 @@ def main():
     group_set_label = config[ "group_set_label" ]
     output_base = Path( args.output_dir )
 
+    # Optional per-group attributes carried (opaque) after SequenceGroup_ID on the per-group
+    # table; reserve the engine's own identity/count columns so they are never duplicated.
+    carried_headers, group_ids___carried_cells = U.load_group_attributes(
+        workflow_root, config, { "SequenceGroup_ID", "Sequence_Count", "Species_Count" } )
+    empty_carried = [ '' ] * len( carried_headers )
+
     membership_path = output_base / "1-output" / f"1_ai-{group_set_label}-sequence_group_membership.tsv"
     mappings_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "clade_species_mappings" ] )
     manifest_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "composite_clades_manifest" ] )
@@ -120,13 +126,16 @@ def main():
 
     # ---- Deliverable 1: per-group table (one column per algorithm) ----------
     per_group_path = output_dir / f"4_ai-{group_set_label}-composite_clades-per_group.tsv"
-    per_group_header = [
-        "SequenceGroup_ID (identifier of the sequence group from the producer)",
-        "Composite_Clade-exact (the group's exact composite clade cc_<components>-exact when curated, else None; one per group)",
-        "Composite_Clades-absent (comma delimited absent composite clades this group matches i.e. members absent from all those clades, else None)",
-        "Composite_Clades-core_urclade (comma delimited core_urclade composite clades matched i.e. members in an outgroup of the target and in an ingroup, else None)",
-        "Composite_Clades-core_early_clade (comma delimited core_early_clade composite clades matched i.e. members in two or more early ingroup branches, else None)",
-    ]
+    per_group_header = (
+        [ "SequenceGroup_ID (identifier of the sequence group from the producer)" ]
+        + carried_headers
+        + [
+            "Composite_Clade-exact (the group's exact composite clade cc_<components>-exact when curated, else None; one per group)",
+            "Composite_Clades-absent (comma delimited absent composite clades this group matches i.e. members absent from all those clades, else None)",
+            "Composite_Clades-core_urclade (comma delimited core_urclade composite clades matched i.e. members in an outgroup of the target and in an ingroup, else None)",
+            "Composite_Clades-core_early_clade (comma delimited core_early_clade composite clades matched i.e. members in two or more early ingroup branches, else None)",
+        ]
+    )
     with open( per_group_path, 'w' ) as output_per_group:
         output_per_group.write( '\t'.join( per_group_header ) + '\n' )
         for sequence_group_id in group_order:
@@ -135,7 +144,8 @@ def main():
             for algorithm in U.COMPOSITE_CLADE_ALGORITHMS:
                 matched = matches.get( algorithm, [] )
                 cells.append( U.DELIM.join( matched ) if matched else "None" )
-            output_per_group.write( '\t'.join( [ sequence_group_id ] + cells ) + '\n' )
+            carried = group_ids___carried_cells.get( sequence_group_id, empty_carried )
+            output_per_group.write( '\t'.join( [ sequence_group_id ] + carried + cells ) + '\n' )
 
     # ---- Deliverable 2: summary counts --------------------------------------
     summary_path = output_dir / f"4_ai-{group_set_label}-composite_clades-summary_counts.tsv"

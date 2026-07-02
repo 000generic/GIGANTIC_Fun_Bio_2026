@@ -58,6 +58,18 @@ inputs:
   # clades to report (one per row; see the file's header). Relative to the workflow dir.
   composite_clades_manifest: "INPUT_user/composite_clades_manifest.tsv"
 
+  # OPTIONAL: per-group attributes table carried (opaque pass-through) onto the per-group
+  # rows of the deconvolution/per-species/composite outputs, right after SequenceGroup_ID.
+  # This keeps the engine producer-agnostic while letting a producer enrich its outputs with
+  # its own per-group metadata (e.g. human-readable annotation labels). Convention: the
+  # FIRST column is the join key (matches SequenceGroup_ID); every other column is carried,
+  # except any column the engine already emits (Sequence_Count, Species_Count).
+  # Leave "" (empty) to disable.
+  #   annogroups : <species_set>/<source>/2_ai-<source>-annogroup_map.tsv
+  #                (Source, Annogroup_Type, Defining_Features, Annotation_Definitions, Species_List)
+  #   orthogroups / gene families / gene groups : their own table, or "" for none.
+  group_attributes: ""
+
 # =============================================================================
 # Composite Clades (Script 004)
 # =============================================================================

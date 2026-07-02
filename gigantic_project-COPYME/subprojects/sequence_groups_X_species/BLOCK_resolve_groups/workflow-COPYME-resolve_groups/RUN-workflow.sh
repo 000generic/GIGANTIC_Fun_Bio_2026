@@ -112,7 +112,9 @@ echo "Creating output_to_input symlinks for ${GROUP_SET_LABEL}..."
 # <subproject>/<block>/<workflow>/OUTPUT_pipeline/. So a symlink at
 # output_to_input/<label>/ reaches them via ../../<block>/<workflow>/...
 BLOCK_DIR_NAME="$(basename "$(dirname "${SCRIPT_DIR}")")"
-SHARED_DIR="../../output_to_input/${GROUP_SET_LABEL}"
+# Per-producer namespace: output_to_input/<producer>/<group_set_label>/ so the many
+# group sets stay navigable (annogroups/, orthogroups/, gene_families/, gene_groups/).
+SHARED_DIR="../../output_to_input/${PRODUCER}/${GROUP_SET_LABEL}"
 # replace stale state for this group set (output_to_input holds only symlinks)
 find "${SHARED_DIR}" -mindepth 1 -maxdepth 1 -name '*.tsv' -type l -delete 2>/dev/null
 rm -rf "${SHARED_DIR}/composite_clades_detail_tables" 2>/dev/null
@@ -122,7 +124,7 @@ link_outputs() {
     # link every .tsv in OUTPUT_pipeline/$1 into SHARED_DIR (flat)
     for f in OUTPUT_pipeline/$1/*.tsv; do
         [ -f "$f" ] || continue
-        ln -sf "../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/$f" "${SHARED_DIR}/$(basename "$f")"
+        ln -sf "../../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/$f" "${SHARED_DIR}/$(basename "$f")"
         SYMLINK_COUNT=$((SYMLINK_COUNT+1))
     done
 }
@@ -134,7 +136,7 @@ if [ -d "OUTPUT_pipeline/4-output/composite_clades_detail_tables" ]; then
     mkdir -p "${SHARED_DIR}/composite_clades_detail_tables"
     for f in OUTPUT_pipeline/4-output/composite_clades_detail_tables/*.tsv; do
         [ -f "$f" ] || continue
-        ln -sf "../../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/$f" "${SHARED_DIR}/composite_clades_detail_tables/$(basename "$f")"
+        ln -sf "../../../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/$f" "${SHARED_DIR}/composite_clades_detail_tables/$(basename "$f")"
         SYMLINK_COUNT=$((SYMLINK_COUNT+1))
     done
 fi

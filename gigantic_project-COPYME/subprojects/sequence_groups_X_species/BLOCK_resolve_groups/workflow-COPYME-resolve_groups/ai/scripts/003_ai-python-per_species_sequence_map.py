@@ -38,8 +38,15 @@ def main():
     args = parser.parse_args()
 
     config = U.load_config( args.config )
+    workflow_root = U.workflow_root_from_output_dir( args.output_dir )
     group_set_label = config[ "group_set_label" ]
     output_base = Path( args.output_dir )
+
+    # Optional per-group attributes carried (opaque) after SequenceGroup_ID; reserve the
+    # engine's own identity/count columns so they are never duplicated.
+    carried_headers, group_ids___carried_cells = U.load_group_attributes(
+        workflow_root, config, { "SequenceGroup_ID", "Sequence_Count", "Species_Count" } )
+    empty_carried = [ '' ] * len( carried_headers )
 
     membership_path = output_base / "1-output" / f"1_ai-{group_set_label}-sequence_group_membership.tsv"
     if not membership_path.is_file():
@@ -80,12 +87,14 @@ def main():
     output_dir.mkdir( parents = True, exist_ok = True )
     output_path = output_dir / f"3_ai-{group_set_label}-sequences_per_species.tsv"
 
-    header = [
-        "SequenceGroup_ID (identifier of the sequence group from the producer)",
-        "Sequence_Count (number of member sequences in this group)",
-        "Species_Count (number of distinct member species in this group)",
-    ] + [ f"{species} (comma delimited member sequence identifiers of this sequence group whose species is {species})"
-          for species in species_columns ]
+    header = (
+        [ "SequenceGroup_ID (identifier of the sequence group from the producer)" ]
+        + carried_headers
+        + [ "Sequence_Count (number of member sequences in this group)",
+            "Species_Count (number of distinct member species in this group)" ]
+        + [ f"{species} (comma delimited member sequence identifiers of this sequence group whose species is {species})"
+            for species in species_columns ]
+    )
 
     with open( output_path, 'w' ) as output_file:
         output_file.write( '\t'.join( header ) + '\n' )
@@ -94,7 +103,8 @@ def main():
             sequence_count = sum( len( sequences ) for sequences in species___sequences.values() )
             species_count = len( species___sequences )
             cells = [ U.DELIM.join( sorted( species___sequences.get( species, [] ) ) ) for species in species_columns ]
-            output = '\t'.join( [ sequence_group_id, str( sequence_count ), str( species_count ) ] + cells ) + '\n'
+            carried = group_ids___carried_cells.get( sequence_group_id, empty_carried )
+            output = '\t'.join( [ sequence_group_id ] + carried + [ str( sequence_count ), str( species_count ) ] + cells ) + '\n'
             output_file.write( output )
 
     print( f"[003 {group_set_label}] wrote {len( group_order )} sequence groups x {len( species_columns )} species "

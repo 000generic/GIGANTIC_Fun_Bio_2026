@@ -455,3 +455,71 @@ def build_header_index( header_line: str ) -> dict:
         header_id = column.split( ' (' )[ 0 ].strip()
         header_ids___indices[ header_id ] = index
     return header_ids___indices
+
+
+def bare_header_id( header: str ) -> str:
+    """The bare column id of a self-documenting 'id (description)' header (text before ' (')."""
+    return header.split( ' (' )[ 0 ].strip()
+
+
+def load_group_attributes( workflow_root: Path, config: dict, reserved_header_ids: set ):
+    """
+    Load the OPTIONAL per-group attributes table (config inputs.group_attributes) so its
+    columns can be carried, as OPAQUE PASS-THROUGH, onto the per-group rows of the overlay
+    outputs (deconvolution / per-species / composite). This keeps the engine
+    producer-agnostic while letting each producer enrich its outputs with whatever per-group
+    metadata it has:
+      - annogroups    supplies 2_ai-<source>-annogroup_map.tsv (Source, Annogroup_Type,
+                      Defining_Features, Annotation_Definitions, Species_List, ...)
+      - orthogroups / gene families / gene groups supply their own table, or none.
+
+    Table convention: the FIRST column is the join key (matched to SequenceGroup_ID); every
+    other column is an attribute. Attribute columns whose bare id is already emitted by the
+    calling script (reserved_header_ids, e.g. Sequence_Count / Species_Count) are skipped so
+    the engine's own computed columns are never duplicated. The engine never interprets the
+    attribute VALUES — it only carries them.
+
+    Returns ( carried_headers, group_ids___carried_cells ):
+        carried_headers            self-documenting headers to insert right after SequenceGroup_ID
+        group_ids___carried_cells  { group_id: [ cell, ... ] } aligned to carried_headers
+    Returns ( [], {} ) when inputs.group_attributes is unset/empty (join disabled).
+    Fail-fast (§36): exits 1 if a path is configured but missing / malformed / has no rows.
+    """
+    inputs = config.get( "inputs", {} ) or {}
+    raw_path = inputs.get( "group_attributes", "" )
+    if not raw_path or not str( raw_path ).strip():
+        return [], {}
+
+    attributes_path = resolve_input_path( workflow_root, str( raw_path ).strip() )
+    if not attributes_path.is_file():
+        print( f"CRITICAL ERROR: group_attributes configured but not found: {attributes_path}", file = sys.stderr )
+        sys.exit( 1 )
+
+    with open( attributes_path, 'r' ) as input_attributes:
+        parts_header = input_attributes.readline().rstrip( '\n' ).split( '\t' )
+        if len( parts_header ) < 2:
+            print( f"CRITICAL ERROR: group_attributes needs a key column plus >=1 attribute column: {attributes_path}", file = sys.stderr )
+            sys.exit( 1 )
+        # Column 0 is the join key; the rest are candidate attribute columns. Keep only the
+        # candidates the calling script does not already emit (avoids duplicate columns).
+        attribute_headers = parts_header[ 1: ]
+        carried_indices = [ index for index, header in enumerate( attribute_headers )
+                            if bare_header_id( header ) not in reserved_header_ids ]
+        carried_headers = [ attribute_headers[ index ] for index in carried_indices ]
+
+        group_ids___carried_cells = {}
+        for line in input_attributes:
+            line = line.rstrip( '\n' )
+            if not line:
+                continue
+            parts = line.split( '\t' )
+            group_id = parts[ 0 ]
+            attribute_cells = parts[ 1: ]
+            group_ids___carried_cells[ group_id ] = [
+                attribute_cells[ index ] if index < len( attribute_cells ) else '' for index in carried_indices ]
+
+    if not group_ids___carried_cells:
+        print( f"CRITICAL ERROR: group_attributes table has a header but no data rows: {attributes_path}", file = sys.stderr )
+        sys.exit( 1 )
+
+    return carried_headers, group_ids___carried_cells
