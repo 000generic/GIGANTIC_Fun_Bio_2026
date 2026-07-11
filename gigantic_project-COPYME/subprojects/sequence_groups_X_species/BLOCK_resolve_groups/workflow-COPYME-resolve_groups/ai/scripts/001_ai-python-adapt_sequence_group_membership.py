@@ -153,20 +153,27 @@ def main():
     parser = argparse.ArgumentParser( description = "Adapt a producer's sequence-group set into the standard membership" )
     parser.add_argument( '--config', required = True )
     parser.add_argument( '--output_dir', required = True )
+    # Optional per-producer overrides (multi-producer runner passes these on the command
+    # line so ONE run resolves many producers; each falls back to config when omitted).
+    parser.add_argument( '--producer', default = None )
+    parser.add_argument( '--group_set_label', default = None )
+    parser.add_argument( '--producer_membership', default = None )
+    parser.add_argument( '--workflow_root', default = None )
     args = parser.parse_args()
 
     config = U.load_config( args.config )
-    workflow_root = U.workflow_root_from_output_dir( args.output_dir )
+    workflow_root = Path( args.workflow_root ).resolve() if args.workflow_root else U.workflow_root_from_output_dir( args.output_dir )
 
-    group_set_label = config[ "group_set_label" ]
-    producer = config[ "producer" ]
+    group_set_label = args.group_set_label if args.group_set_label else config[ "group_set_label" ]
+    producer = args.producer if args.producer else config[ "producer" ]
     if producer not in PRODUCER_READERS:
         print( f"CRITICAL ERROR: unknown producer '{producer}'; known producers: {sorted( PRODUCER_READERS )}", file = sys.stderr )
         sys.exit( 1 )
 
     # producer_membership is a FILE for most producers (orthogroups, annogroups) and a
     # DIRECTORY for gene_families (a tree of per-family AGS FASTAs).
-    producer_membership_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "producer_membership" ] )
+    producer_membership_config = args.producer_membership if args.producer_membership else config[ "inputs" ][ "producer_membership" ]
+    producer_membership_path = U.resolve_input_path( workflow_root, producer_membership_config )
     if not producer_membership_path.exists():
         print( f"CRITICAL ERROR: producer membership not found: {producer_membership_path}", file = sys.stderr )
         sys.exit( 1 )

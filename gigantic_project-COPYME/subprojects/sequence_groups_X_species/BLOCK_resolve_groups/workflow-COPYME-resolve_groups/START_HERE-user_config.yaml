@@ -7,68 +7,125 @@
 # ============================================================================
 #
 # GIGANTIC sequence_groups_X_species - BLOCK_resolve_groups
-# AI: Claude Code | Opus 4.8 | 2026 June 28
+# AI: Claude Code | Opus 4.8 | 2026 June 28  (multi-producer: Opus 4.8 | 2026 July 08)
 # Human: Eric Edsinger
 #
-# RESOLVES one "sequence group" set onto the species-tree clades. A sequence group
-# is producer-agnostic — an orthogroup (orthology), an annogroup (annotation), a
-# gene family, etc. This run reads ONE group set, adapts it into the standard
-# membership (Script 001), then overlays it onto the species tree three ways:
+# RESOLVES many "sequence group" sets onto the species-tree clades in ONE run. A
+# sequence group is producer-agnostic — an orthogroup (orthology), an annogroup
+# (annotation), a gene family, a gene group, etc. Each producer listed under
+# `producers:` below is its OWN process chain: Script 001 adapts its native output
+# into the standard membership, then three overlays run:
 #   002 deconvolution     - per group, member SEQUENCE + SPECIES counts per clade
 #   003 per-species map   - per group, member sequence identifiers per species
 #   004 composite clades  - per group, which clades its members span (4 algorithms)
 
-# Label for this group set; names the output_to_input subdirectory.
-# Convention: <species_set>_X_<producer-or-method>, e.g. "species70_X_OrthoHMM".
-group_set_label: "species70_X_OrthoHMM"
+# Project name (used only in the run log text).
+project_name: "GIGANTIC"
 
 # Species set the group members belong to (must match the species tree).
 species_set_name: "species70"
 
-# Which producer's native output to adapt into the standard membership (Script 001).
-# Supported: orthogroups | annogroups | gene_families
-#   (more added as small reader branches in Script 001's PRODUCER_READERS).
-producer: "orthogroups"
-
-# Optional: also emit the per-structure deconvolution re-layout (2 x 105 files).
-# The union tables already hold every clade's count (Rule 6 => stable across
-# structures), so this is off by default; turn on only if a consumer needs the
-# per-structure layout.
+# Optional: also emit the per-structure deconvolution re-layout (2 files per
+# selected structure). The union tables already hold every clade's count (Rule 6 =>
+# stable across structures), so this is off by default; turn on only if a consumer
+# needs the per-structure layout.
 emit_per_structure: false
 
-# Input paths (relative to this workflow directory)
-inputs:
-  # The producer's native group membership (a FILE for orthogroups/annogroups, a
-  # DIRECTORY tree for gene_families):
-  #   orthogroups   : orthogroups_gigantic_ids.tsv (one orthogroup per line; members
-  #                   tab-delimited; Genus_species parsed from each member's -n_<phyloname>)
-  #   annogroups    : <species_set>/<source>/2_ai-<source>-annogroup_membership.tsv
-  #                   (one row per (sequence, annogroup); Genus_Species is a column)
-  #   gene_families : the trees_gene_families output_to_input root (one AGS FASTA per
-  #                   family, **/16_ai-ags-*.aa; RGS reference seeds without a phyloname
-  #                   are skipped -- only species homologs become members)
-  producer_membership: "../../../orthogroups/output_to_input/BLOCK_orthohmm/orthogroups_gigantic_ids.tsv"
+# Deconvolution structure scope (Script 002, the 2-output overlay).
+# By default the deconvolution reports the UNION of clades across ALL 105 species-tree
+# structures. Set this list to restrict the deconvolution to the clades present in only
+# these structures (fewer, more focused clade columns). Leave empty ([]) for all 105.
+# Leonid (2026-07): report only the 4 curated structures 001/003/031/032.
+deconvolution_structures: [ "structure_001", "structure_003", "structure_031", "structure_032" ]
 
+# =============================================================================
+# Producers  (ONE run resolves ALL of these; each is its own process chain)
+# =============================================================================
+# Each entry:
+#   producer            : which native reader (Script 001 PRODUCER_READERS):
+#                         orthogroups | annogroups | gene_families | gene_groups
+#   group_set_label     : names this producer's output subtree + output_to_input
+#                         namespace. Convention: <species_set>_X_<producer-or-source>.
+#   producer_membership : the producer's native membership — a FILE for
+#                         orthogroups/annogroups, a DIRECTORY tree for
+#                         gene_families/gene_groups. Relative to this workflow dir.
+#   group_attributes    : OPTIONAL per-group attributes table (opaque pass-through
+#                         carried after SequenceGroup_ID). FIRST column is the join
+#                         key (matches SequenceGroup_ID). "" disables the join.
+producers:
+  - producer: "orthogroups"
+    group_set_label: "species70_X_orthogroups"
+    # Canonical species70 orthohmm run (BLOCK_orthohmm_GIGANTIC = 202,994 orthogroups /
+    # 1,375,926 members) — the same input the integrator/leonid block uses. NOT the older
+    # BLOCK_orthohmm run (170,027 orthogroups).
+    producer_membership: "../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv"
+    group_attributes: ""
+
+  - producer: "annogroups"
+    group_set_label: "species70_X_annogroups_pfam"
+    producer_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/pfam/2_ai-pfam-annogroup_membership.tsv"
+    group_attributes: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/pfam/2_ai-pfam-annogroup_map.tsv"
+
+  - producer: "annogroups"
+    group_set_label: "species70_X_annogroups_go"
+    producer_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/go/2_ai-go-annogroup_membership.tsv"
+    group_attributes: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/go/2_ai-go-annogroup_map.tsv"
+
+  - producer: "annogroups"
+    group_set_label: "species70_X_annogroups_panther"
+    producer_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/panther/2_ai-panther-annogroup_membership.tsv"
+    group_attributes: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/panther/2_ai-panther-annogroup_map.tsv"
+
+  - producer: "gene_families"
+    group_set_label: "species70_X_gene_families"
+    producer_membership: "../../../trees_gene_families/output_to_input"
+    group_attributes: ""
+
+  - producer: "gene_groups"
+    group_set_label: "species70_X_gene_groups_hugo_hgnc"
+    producer_membership: "../../../trees_gene_groups/output_to_input/gene_groups-hugo_hgnc"
+    group_attributes: ""
+
+  - producer: "gene_groups"
+    group_set_label: "species70_X_gene_groups_snap_family"
+    producer_membership: "../../../trees_gene_groups/output_to_input/gene_groups-snap_family"
+    group_attributes: ""
+
+# =============================================================================
+# Shared inputs  (read by every producer; relative to this workflow directory)
+# =============================================================================
+inputs:
   # Species-tree clade->species mapping (trees_species, ALL structures). Read by
   # Script 002 (deconvolution) and Script 004 (composite clades). Clade species
   # sets are stable across structures (Rule 6).
   clade_species_mappings: "../../../trees_species/output_to_input/BLOCK_permutations_and_features/Species_Clade_Species_Mappings/9_ai-clade_species_mappings-all_structures.tsv"
 
-  # Curated composite-clades manifest (Script 004) — the user's list of composite
-  # clades to report (one per row; see the file's header). Relative to the workflow dir.
+  # Curated composite-clades manifest (Script 004) — the composite clades to report
+  # (one per row; see the file's header). Generated by Script 000 for ALL clades.
   composite_clades_manifest: "INPUT_user/composite_clades_manifest.tsv"
 
-  # OPTIONAL: per-group attributes table carried (opaque pass-through) onto the per-group
-  # rows of the deconvolution/per-species/composite outputs, right after SequenceGroup_ID.
-  # This keeps the engine producer-agnostic while letting a producer enrich its outputs with
-  # its own per-group metadata (e.g. human-readable annotation labels). Convention: the
-  # FIRST column is the join key (matches SequenceGroup_ID); every other column is carried,
-  # except any column the engine already emits (Sequence_Count, Species_Count).
-  # Leave "" (empty) to disable.
-  #   annogroups : <species_set>/<source>/2_ai-<source>-annogroup_map.tsv
-  #                (Source, Annogroup_Type, Defining_Features, Annotation_Definitions, Species_List)
-  #   orthogroups / gene families / gene groups : their own table, or "" for none.
-  group_attributes: ""
+# =============================================================================
+# Annotation index (Script 006 -> Script 004 detail-table annotation columns)
+# =============================================================================
+# Script 006 builds ONE cross-producer sequence -> annotation index, and Script 004
+# joins it onto every producer's composite-clades DETAIL tables: per sequence group,
+# it adds the distinct annotation identifiers + names aggregated over ALL member
+# sequences, for each annotation mode below. Leonid (2026-07): GO, PANTHER, PFAM,
+# Gene_Families, and Gene_Groups.
+#
+# PFAM/PANTHER/GO identifiers+names come from the FEATURE-type annogroups (the raw
+# per-sequence accession + its description) already produced by the annogroups
+# subproject. Gene_Families and Gene_Groups use the family/group slug as both
+# identifier and name (the slug matches each producer's own SequenceGroup_ID).
+annotation_index:
+  pfam_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/pfam/2_ai-pfam-annogroup_membership.tsv"
+  pfam_map: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/pfam/2_ai-pfam-annogroup_map.tsv"
+  panther_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/panther/2_ai-panther-annogroup_membership.tsv"
+  panther_map: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/panther/2_ai-panther-annogroup_map.tsv"
+  go_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/go/2_ai-go-annogroup_membership.tsv"
+  go_map: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/go/2_ai-go-annogroup_map.tsv"
+  gene_families_dir: "../../../trees_gene_families/output_to_input"
+  gene_groups_dir: "../../../trees_gene_groups/output_to_input/gene_groups-hugo_hgnc"
 
 # =============================================================================
 # Composite Clades (Script 004)
@@ -83,10 +140,8 @@ inputs:
 #                        (the target's Ur = last-common-ancestor core)
 #   - core_early_clade : members in >=2 ingroups (the target's "Early" window = its
 #                        early descendant branches / the species tree's ambiguous nodes)
-# Edit `groups` to analyze ANY clade grouping; the default is the five metazoan
-# clades within Metazoa (these are CLADES, not phyla — Bilateria is a clade). Group
-# names + the scope name (Metazoa) + any clade_id_name are resolvable as
-# Target_Clade / Clades in the manifest.
+# The `groups` below are the preserved metazoan building blocks used by the curated
+# `exact` rows in the manifest (these are CLADES, not phyla — Bilateria is a clade).
 composite_clades:
   reference_structure: "structure_001"
   scope_clade_id_name: "C082_Metazoa"
@@ -100,27 +155,29 @@ composite_clades:
 
 # Output configuration
 output:
-  #   OUTPUT_pipeline/1-output/   standard membership
-  #   OUTPUT_pipeline/2-output/   deconvolution (sequence + species counts per clade)
-  #   OUTPUT_pipeline/3-output/   per-species sequence map
-  #   OUTPUT_pipeline/4-output/   composite clades
+  #   OUTPUT_pipeline/<group_set_label>/1-output/   standard membership
+  #   OUTPUT_pipeline/<group_set_label>/2-output/   deconvolution (sequence + species counts per clade)
+  #   OUTPUT_pipeline/<group_set_label>/3-output/   per-species sequence map
+  #   OUTPUT_pipeline/<group_set_label>/4-output/   composite clades
   base_dir: "OUTPUT_pipeline"
 
 # =============================================================================
 # Computational Resources (SLURM, when execution_mode is "slurm")
 # =============================================================================
 # The membership (~1.4M rows) and per-species pivot dominate memory; the work is
-# dict/set aggregation. The deconvolution union is the heaviest step.
+# dict/set aggregation. Script 006 (annotation index) is the heaviest single step.
+# RUN-workflow.sh submits ONE SLURM allocation; per-process ceilings live in
+# ai/nextflow.config withName blocks. Keep memory_gb <= moroz QOS 80 GB group cap.
 cpus: 4
-memory_gb: 24
-time_hours: 4
+memory_gb: 64
+time_hours: 12
 
 # =============================================================================
 # Execution Mode  ("local" runs here; "slurm" self-submits as a SLURM job)
 # =============================================================================
 execution_mode: "slurm"
-slurm_account: "your_account"
-slurm_qos: "your_qos"
+slurm_account: "moroz"
+slurm_qos: "moroz"
 
 # Resume from cached NextFlow work/ (false = re-run from scratch)
 resume: false

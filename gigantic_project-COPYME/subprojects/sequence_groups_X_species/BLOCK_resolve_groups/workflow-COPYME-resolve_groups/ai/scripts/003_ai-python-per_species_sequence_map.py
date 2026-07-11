@@ -35,17 +35,22 @@ def main():
     parser = argparse.ArgumentParser( description = "Per-species sequence map — sequence group x species -> member sequence identifiers" )
     parser.add_argument( '--config', required = True )
     parser.add_argument( '--output_dir', required = True )
+    # Optional per-producer overrides (multi-producer runner); fall back to config.
+    parser.add_argument( '--group_set_label', default = None )
+    parser.add_argument( '--group_attributes', default = None )
+    parser.add_argument( '--workflow_root', default = None )
     args = parser.parse_args()
 
     config = U.load_config( args.config )
-    workflow_root = U.workflow_root_from_output_dir( args.output_dir )
-    group_set_label = config[ "group_set_label" ]
+    workflow_root = Path( args.workflow_root ).resolve() if args.workflow_root else U.workflow_root_from_output_dir( args.output_dir )
+    group_set_label = args.group_set_label if args.group_set_label else config[ "group_set_label" ]
     output_base = Path( args.output_dir )
 
     # Optional per-group attributes carried (opaque) after SequenceGroup_ID; reserve the
     # engine's own identity/count columns so they are never duplicated.
     carried_headers, group_ids___carried_cells = U.load_group_attributes(
-        workflow_root, config, { "SequenceGroup_ID", "Sequence_Count", "Species_Count" } )
+        workflow_root, config, { "SequenceGroup_ID", "Sequence_Count", "Species_Count" },
+        override_group_attributes = args.group_attributes )
     empty_carried = [ '' ] * len( carried_headers )
 
     membership_path = output_base / "1-output" / f"1_ai-{group_set_label}-sequence_group_membership.tsv"

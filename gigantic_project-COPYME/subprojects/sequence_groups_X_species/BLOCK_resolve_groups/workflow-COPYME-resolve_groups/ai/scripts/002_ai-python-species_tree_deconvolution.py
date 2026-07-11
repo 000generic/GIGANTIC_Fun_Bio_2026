@@ -5,18 +5,22 @@
 Script 002 — Species-tree deconvolution (one sequence-group set).
 
 For every sequence group, adds one column per NON-REDUNDANT clade (node or tip)
-across all 105 species-tree structures, holding the count of the group's members
+across the in-scope species-tree structures, holding the count of the group's members
 within that clade. TWO parallel overlays are produced:
   - SEQUENCE counts  : member sequences (proteins) per clade
   - SPECIES counts   : DISTINCT member species per clade
 A clade that covers all species (a tree root) equals the group's Sequence_Count
 (sequence overlay) / Species_Count (species overlay) — checked, fail-fast.
 
-Why one file per overlay covers all 105 structures (Rule 6): a clade_id_name names a
+Why one file per overlay covers many structures (Rule 6): a clade_id_name names a
 fixed species set, so a group's count at that clade is identical in every structure
-it appears in. The 105 structures contribute a UNION of distinct clades; each unique
-clade is one column, computed once. A companion per-structure file lays each
+it appears in. The in-scope structures contribute a UNION of distinct clades; each
+unique clade is one column, computed once. A companion per-structure file lays each
 structure's own clades out root -> tips.
+
+Structure scope (config deconvolution_structures): by default ALL 105 structures are
+used (the full clade union). Set deconvolution_structures to restrict to just the
+clades present in those structures (e.g. the 4 curated structures 001/003/031/032).
 
 Input (the standard membership from Script 001):
   1-output/1_ai-<group_set_label>-sequence_group_membership.tsv
@@ -41,12 +45,16 @@ sys.path.insert( 0, str( Path( __file__ ).parent ) )
 import utils_sequence_groups as U
 
 
-def load_clade_data( clade_map_path: Path ):
+def load_clade_data( clade_map_path: Path, restrict_structures = None ):
     """
-    Clades from the trees_species clade->species map (all structures): the
-    non-redundant union (single combined table) + each structure's clade set +
-    parent/child topology (per-structure tables). Validates Rule 6 (a clade_id_name
-    has the SAME species set in every structure).
+    Clades from the trees_species clade->species map: the non-redundant union (single
+    combined table) + each structure's clade set + parent/child topology (per-structure
+    tables). Validates Rule 6 (a clade_id_name has the SAME species set in every
+    structure).
+
+    restrict_structures: optional set of Structure_ID; when given, ONLY those structures
+    are ingested (the deconvolution reports the union of clades present in just those
+    structures). When None, all structures in the map are used.
 
     Returns:
         clades___species          { clade_id_name: frozenset( Genus_species ) }
@@ -79,6 +87,8 @@ def load_clade_data( clade_map_path: Path ):
                 continue
             parts = line.split( '\t' )
             structure_id = parts[ index_structure ]
+            if restrict_structures is not None and structure_id not in restrict_structures:
+                continue
             clade_id_name = parts[ index_clade ]
             descendant_count = int( parts[ index_descendant_count ] ) if parts[ index_descendant_count ] else 0
             descendant_list = parts[ index_descendant_list ] if index_descendant_list < len( parts ) else ''
@@ -171,19 +181,28 @@ def main():
     parser = argparse.ArgumentParser( description = "Species-tree deconvolution of a sequence-group set (sequence + species counts per clade)" )
     parser.add_argument( '--config', required = True )
     parser.add_argument( '--output_dir', required = True )
+    # Optional per-producer overrides (multi-producer runner); fall back to config.
+    parser.add_argument( '--group_set_label', default = None )
+    parser.add_argument( '--group_attributes', default = None )
+    parser.add_argument( '--workflow_root', default = None )
     args = parser.parse_args()
 
     config = U.load_config( args.config )
-    workflow_root = U.workflow_root_from_output_dir( args.output_dir )
-    group_set_label = config[ "group_set_label" ]
+    workflow_root = Path( args.workflow_root ).resolve() if args.workflow_root else U.workflow_root_from_output_dir( args.output_dir )
+    group_set_label = args.group_set_label if args.group_set_label else config[ "group_set_label" ]
     # The union table already holds every clade's count (Rule 6 => stable across
-    # structures), so the per-structure re-layout (2 x 105 files) is optional.
+    # structures), so the per-structure re-layout is optional.
     emit_per_structure = bool( config.get( "emit_per_structure", False ) )
+    # Optional: restrict the deconvolution to the clades present in only these
+    # structures (config deconvolution_structures). Empty/absent => all structures.
+    deconvolution_structures = config.get( "deconvolution_structures", [] ) or []
+    restrict_structures = set( deconvolution_structures ) if deconvolution_structures else None
 
     # Optional per-group attributes carried (opaque) after SequenceGroup_ID; reserve the
     # engine's own identity/count columns so they are never duplicated.
     carried_headers, group_ids___carried_cells = U.load_group_attributes(
-        workflow_root, config, { "SequenceGroup_ID", "Sequence_Count", "Species_Count" } )
+        workflow_root, config, { "SequenceGroup_ID", "Sequence_Count", "Species_Count" },
+        override_group_attributes = args.group_attributes )
     empty_carried = [ '' ] * len( carried_headers )
 
     output_base = Path( args.output_dir )
@@ -196,8 +215,17 @@ def main():
 
     # ---- clades -------------------------------------------------------------
     ( clades___species, clades___descendant_count, clades___structure_count, tip_species,
-      structures___parents_children, structures___clades, all_structures ) = load_clade_data( clade_map_path )
+      structures___parents_children, structures___clades, all_structures ) = load_clade_data( clade_map_path, restrict_structures )
     total_structures = len( all_structures )
+
+    # Fail-fast: a requested structure that is absent from the mapping is a typo that
+    # would silently narrow (or empty) the deconvolution scope.
+    if restrict_structures is not None:
+        missing_structures = sorted( restrict_structures - set( all_structures ) )
+        if missing_structures:
+            print( f"CRITICAL ERROR: deconvolution_structures not found in clade mapping: {missing_structures}", file = sys.stderr )
+            sys.exit( 1 )
+        print( f"[002 {group_set_label}] deconvolution restricted to {len( all_structures )} structure(s): {sorted( all_structures )}" )
 
     union_ordered_clades = sorted( clades___species.keys(),
                                    key = lambda clade: ( -clades___descendant_count[ clade ], clade ) )

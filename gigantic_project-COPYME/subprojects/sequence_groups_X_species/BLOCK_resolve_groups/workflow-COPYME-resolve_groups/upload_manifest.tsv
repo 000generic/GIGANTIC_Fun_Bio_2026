@@ -1,13 +1,19 @@
 # GIGANTIC upload_manifest.tsv — sequence_groups_X_species / BLOCK_resolve_groups
 # ============================================================================
-# Publishes the species-tree overlay of one sequence-group set: the
+# Publishes the species-tree overlay of EVERY producer's sequence-group set (ONE
+# run resolves all producers under OUTPUT_pipeline/<group_set_label>/): the
 # deconvolution union tables (Script 002), the per-species sequence map
 # (Script 003), and the composite clades (Script 004). Script 001's standard
 # membership is a build internal (include=no).
 #
+# The source_path patterns use OUTPUT_pipeline/*/N-output/... where the '*' is the
+# per-producer <group_set_label> (e.g. species70_X_orthogroups). The publish helper
+# preserves that <group_set_label> level in the destination, so each producer lands
+# in its own folder.
+#
 # Build with (from the subproject root):  bash RUN-update_upload_to_server.sh
 # Published files land at:
-#   ../../upload_to_server/BLOCK_resolve_groups/workflow-RUN_*/N-output/
+#   ../../upload_to_server/BLOCK_resolve_groups/workflow-RUN_*/<group_set_label>/N-output/
 #
 # This is a COPYME template; copy it into the canonical workflow-RUN_* dir to publish.
 # ============================================================================
@@ -15,16 +21,16 @@
 source_path	include	dest_name	display_label	file_category	description	order	dir_label
 #
 # ----- Composite clades (Script 004) -----
-OUTPUT_pipeline/4-output/4_ai-*-composite_clades-summary_counts.tsv	yes		Composite clade group summary counts	summary	One row per CURATED composite clade (from INPUT_user/composite_clades_manifest.tsv): identifier, algorithm, definition, and the count of sequence groups that match it. A composite clade is a question about where a group's member species fall on the species tree, evaluated by one of four algorithms: exact (members from EXACTLY the listed components), absent (members absent from ALL listed clades), core_urclade (members in an outgroup of the target AND an ingroup; the target's Ur=last-common-ancestor core), core_early_clade (members in two or more ingroups; the target's Early=early descendant branches). Default building blocks: the five metazoan clades Ctenophora Porifera Placozoa Cnidaria Bilateria within Metazoa, plus NonMetazoa.	10	composite clades
-OUTPUT_pipeline/4-output/4_ai-*-composite_clades-per_group.tsv	yes		Composite clade per group	data	Every sequence group with one column per algorithm: its exact composite clade (one per group when curated, else None), and the comma lists of absent / core_urclade / core_early_clade composite clades it matches (independent tests, so a group can match several), else None.	12	composite clades
-OUTPUT_pipeline/4-output/composite_clades_detail_tables/4_ai-*-composite_clades-*.tsv	yes		Composite clade detail tables — group identifiers + member sequences per clade	data	One table per curated composite clade: each row a matching sequence group, with the member SEQUENCE identifiers in each relevant clade.	14	composite clades
+OUTPUT_pipeline/*/4-output/4_ai-*-composite_clades-summary_counts.tsv	yes		Composite clade group summary counts	summary	One row per CURATED composite clade (from INPUT_user/composite_clades_manifest.tsv): identifier, algorithm, definition, and the count of sequence groups that match it. A composite clade is a question about where a group's member species fall on the species tree, evaluated by one of four algorithms: exact (members from EXACTLY the listed components), absent (members absent from ALL listed clades), core_urclade (members in an outgroup of the target AND an ingroup; the target's Ur=last-common-ancestor core), core_early_clade (members in two or more ingroups; the target's Early=early descendant branches). Default building blocks: the five metazoan clades Ctenophora Porifera Placozoa Cnidaria Bilateria within Metazoa, plus NonMetazoa.	10	composite clades
+OUTPUT_pipeline/*/4-output/4_ai-*-composite_clades-per_group.tsv	yes		Composite clade per group	data	Every sequence group with one column per algorithm: its exact composite clade (one per group when curated, else None), and the comma lists of absent / core_urclade / core_early_clade composite clades it matches (independent tests, so a group can match several), else None.	12	composite clades
+OUTPUT_pipeline/*/4-output/composite_clades_detail_tables/4_ai-*-composite_clades-*.tsv	yes		Composite clade detail tables — group identifiers + member sequences per clade	data	One table per curated composite clade: each row a matching sequence group, with the member SEQUENCE identifiers in each relevant clade.	14	composite clades
 #
 # ----- Species-tree deconvolution (Script 002, union over all structures) -----
-OUTPUT_pipeline/2-output/2_ai-*-tree_counts-species-all_structures.tsv	yes		Tree counts — deconvolution (member species per clade)	data	Species-tree deconvolution: per sequence group, the count of DISTINCT member species within every non-redundant clade across all 105 structures, one column per clade root to tips. A full-coverage (root) clade equals the group's Species_Count.	20	deconvolution
-OUTPUT_pipeline/2-output/2_ai-*-tree_counts-sequences-all_structures.tsv	yes		Tree counts — deconvolution (member sequences per clade)	data	The companion member-SEQUENCE (protein) counts per clade for each sequence group; same clade columns as the species table. A full-coverage (root) clade equals the group's Sequence_Count.	22	deconvolution
+OUTPUT_pipeline/*/2-output/2_ai-*-tree_counts-species-all_structures.tsv	yes		Tree counts — deconvolution (member species per clade)	data	Species-tree deconvolution: per sequence group, the count of DISTINCT member species within every non-redundant clade across all 105 structures, one column per clade root to tips. A full-coverage (root) clade equals the group's Species_Count.	20	deconvolution
+OUTPUT_pipeline/*/2-output/2_ai-*-tree_counts-sequences-all_structures.tsv	yes		Tree counts — deconvolution (member sequences per clade)	data	The companion member-SEQUENCE (protein) counts per clade for each sequence group; same clade columns as the species table. A full-coverage (root) clade equals the group's Sequence_Count.	22	deconvolution
 #
 # ----- Per-species sequence map (Script 003) -----
-OUTPUT_pipeline/3-output/3_ai-*-sequences_per_species.tsv	yes		Sequences per species	data	The wide per-species companion to the deconvolution: per sequence group, one column per species (Genus_species) holding that group's member sequence identifiers in that species. The wide form of the standard membership.	30	per-species map
+OUTPUT_pipeline/*/3-output/3_ai-*-sequences_per_species.tsv	yes		Sequences per species	data	The wide per-species companion to the deconvolution: per sequence group, one column per species (Genus_species) holding that group's member sequence identifiers in that species. The wide form of the standard membership.	30	per-species map
 #
 # ----- Standard membership (Script 001) — build internal, NOT published -----
-OUTPUT_pipeline/1-output/1_ai-*-sequence_group_membership.tsv	no		Standard sequence-group membership	data	The producer-agnostic membership (SequenceGroup_ID, Sequence_Identifier, Genus_Species) every overlay reads. Build internal; flip to yes to expose.	40	supporting
+OUTPUT_pipeline/*/1-output/1_ai-*-sequence_group_membership.tsv	no		Standard sequence-group membership	data	The producer-agnostic membership (SequenceGroup_ID, Sequence_Identifier, Genus_Species) every overlay reads. Build internal; flip to yes to expose.	40	supporting

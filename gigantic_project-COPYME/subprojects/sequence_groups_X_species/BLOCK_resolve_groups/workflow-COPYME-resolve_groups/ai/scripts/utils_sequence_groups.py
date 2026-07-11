@@ -366,8 +366,35 @@ def load_clade_species( mappings_path: Path, reference_structure: str, clade_id_
     Read a clade's descendant-species set (Genus_species) for one structure from
     the trees_species clade->species mapping. Returns a set; empty if not found
     (caller should fail-fast on empty for required clades).
+
+    Tip (leaf) clades carry an empty Descendant_Species_List in the mapping (their
+    Descendant_Species_Count is 0). A tip IS a single species named in its
+    clade_id_name (C###_Genus_species), so when the row is found but the species list
+    is empty the single species is derived from the clade_id_name. This mirrors
+    Script 002's tip handling and lets leaf clades resolve to their one species
+    (required for e.g. per-leaf 'absent' composite clades).
     """
-    clade_species = set()
+    structure_clades = _load_structure_clade_species( mappings_path, reference_structure )
+    return set( structure_clades.get( clade_id_name, set() ) )
+
+
+# Cache of { ( mappings_path_str, reference_structure ): { clade_id_name: frozenset( species ) } }
+# so the (large) clade->species mapping is scanned ONCE per structure even when hundreds
+# of composite-clade manifest entries resolve clades (all-clades manifests).
+_STRUCTURE_CLADE_SPECIES_CACHE = {}
+
+
+def _load_structure_clade_species( mappings_path: Path, reference_structure: str ) -> dict:
+    """
+    Load ALL clade->species sets for one structure in a single pass (cached). Tip clades
+    carry an empty Descendant_Species_List; their single species is derived from the
+    clade_id_name (C###_Genus_species), matching Script 002's tip handling.
+    """
+    cache_key = ( str( mappings_path ), reference_structure )
+    if cache_key in _STRUCTURE_CLADE_SPECIES_CACHE:
+        return _STRUCTURE_CLADE_SPECIES_CACHE[ cache_key ]
+
+    clades___species = {}
     with open( mappings_path, 'r' ) as input_mappings:
         header_ids___indices = build_header_index( input_mappings.readline() )
         index_structure = header_ids___indices[ "Structure_ID" ]
@@ -378,11 +405,18 @@ def load_clade_species( mappings_path: Path, reference_structure: str, clade_id_
             if not line:
                 continue
             parts = line.split( '\t' )
-            if parts[ index_structure ] == reference_structure and parts[ index_clade ] == clade_id_name:
-                species_cell = parts[ index_species_list ] if index_species_list < len( parts ) else ""
-                clade_species = { s for s in species_cell.split( ',' ) if s }
-                break
-    return clade_species
+            if parts[ index_structure ] != reference_structure:
+                continue
+            clade_id_name = parts[ index_clade ]
+            species_cell = parts[ index_species_list ] if index_species_list < len( parts ) else ""
+            clade_species = { s for s in species_cell.split( ',' ) if s }
+            # Tip clade: empty descendant list -> the single species is in the name.
+            if not clade_species and '_' in clade_id_name:
+                clade_species = { clade_id_name.split( '_', 1 )[ 1 ] }
+            clades___species[ clade_id_name ] = frozenset( clade_species )
+
+    _STRUCTURE_CLADE_SPECIES_CACHE[ cache_key ] = clades___species
+    return clades___species
 
 
 def load_config( config_path: str ) -> dict:
@@ -462,7 +496,7 @@ def bare_header_id( header: str ) -> str:
     return header.split( ' (' )[ 0 ].strip()
 
 
-def load_group_attributes( workflow_root: Path, config: dict, reserved_header_ids: set ):
+def load_group_attributes( workflow_root: Path, config: dict, reserved_header_ids: set, override_group_attributes = None ):
     """
     Load the OPTIONAL per-group attributes table (config inputs.group_attributes) so its
     columns can be carried, as OPAQUE PASS-THROUGH, onto the per-group rows of the overlay
@@ -483,10 +517,19 @@ def load_group_attributes( workflow_root: Path, config: dict, reserved_header_id
         carried_headers            self-documenting headers to insert right after SequenceGroup_ID
         group_ids___carried_cells  { group_id: [ cell, ... ] } aligned to carried_headers
     Returns ( [], {} ) when inputs.group_attributes is unset/empty (join disabled).
+
+    override_group_attributes: when not None, this value REPLACES config's
+    inputs.group_attributes (used by the multi-producer runner, which passes each
+    producer's own attributes path on the command line; an empty string disables the
+    join for that producer). When None, the config value is used (single-producer mode).
+
     Fail-fast (§36): exits 1 if a path is configured but missing / malformed / has no rows.
     """
-    inputs = config.get( "inputs", {} ) or {}
-    raw_path = inputs.get( "group_attributes", "" )
+    if override_group_attributes is not None:
+        raw_path = override_group_attributes
+    else:
+        inputs = config.get( "inputs", {} ) or {}
+        raw_path = inputs.get( "group_attributes", "" )
     if not raw_path or not str( raw_path ).strip():
         return [], {}
 

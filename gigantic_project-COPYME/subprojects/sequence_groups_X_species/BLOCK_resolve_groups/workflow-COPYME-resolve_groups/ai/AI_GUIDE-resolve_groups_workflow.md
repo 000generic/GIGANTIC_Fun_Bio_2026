@@ -7,14 +7,15 @@ focuses on RUNNING the workflow.
 ## What it does (one group set)
 
 ```
+006 build_annotation_index (once) -> annotation_index/6_ai-sequence_annotation_index.tsv
 001 adapt_membership   producer native output -> 1-output/1_ai-<label>-sequence_group_membership.tsv
         │  (the standard membership; everything below reads only this)
         ├─► 002 species_tree_deconvolution -> 2-output/  (sequence + species counts per clade; union tables)
         ├─► 003 per_species_sequence_map   -> 3-output/  (member sequence ids per species)
-        └─► 004 composite_clades           -> 4-output/  (per-group + summary + detail tables)
+        └─► 004 composite_clades           -> 4-output/  (per-group + summary + 242 detail tables w/ annotations)
 005 write_run_log -> ai/logs/
 ```
-002/003/004 run in parallel after 001.
+006 runs once and gates 004 (annotation columns on detail tables). 002/003/004 run in parallel after 001.
 
 ## Run
 
@@ -40,6 +41,8 @@ Outputs land in `OUTPUT_pipeline/{1,2,3,4}-output/`; downstream symlinks in
 | `inputs.composite_clades_manifest` | `INPUT_user/composite_clades_manifest.tsv` |
 | `composite_clades` | building-block clade groups + scope |
 | `emit_per_structure` | also write the per-structure deconvolution re-layout (default false; the union holds all clades) |
+| `deconvolution_structures` | restrict Script 002 clade columns to these structures only (default `[]` = all 105; Leonid uses 001/003/031/032) |
+| `annotation_index` | paths for Script 006 (PFAM/PANTHER/GO annogroups + gene_families/gene_groups dirs); required for annotated detail tables |
 | `execution_mode` | `local` or `slurm` (then set `slurm_account`/`slurm_qos`) |
 
 ## Common errors
