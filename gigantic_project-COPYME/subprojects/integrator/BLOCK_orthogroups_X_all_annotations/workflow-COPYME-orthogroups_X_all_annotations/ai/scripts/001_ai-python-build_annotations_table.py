@@ -12,7 +12,10 @@ Each row is ONE OrthoHMM orthogroup. Columns, in order:
   Member_Sequence_Count            integer
   Is_Singleton                     yes | no
 
-  For EACH of ten annotation types, two columns:
+  For EACH of ten annotation types, four columns:
+    <Type>_Species_Count           non-redundant # Genus_species among member
+                                   sequences carrying >=1 annotation of this type
+    <Type>_Sequence_Count          # member sequences carrying >=1 annotation
     <Type>_Identifiers             comma-delimited non-redundant identifiers
     <Type>_Names                   ' // '-delimited names aligned to identifiers
 
@@ -730,6 +733,8 @@ def feature_headers( feature: dict ) -> list:
         names_desc = ( f"{prefix}_Names (' // ' delimited {label} names aligned to {prefix}_Identifiers; "
                        f"' // ' used because names may contain commas, semicolons, or pipes)" )
     return [
+        f"{prefix}_Species_Count (non-redundant count of Genus_species among member sequences carrying at least one {label} annotation)",
+        f"{prefix}_Sequence_Count (count of member sequences carrying at least one {label} annotation)",
         f"{prefix}_Identifiers (comma delimited non-redundant {label} identifiers across all member sequences)",
         names_desc,
     ]
@@ -737,11 +742,13 @@ def feature_headers( feature: dict ) -> list:
 
 def feature_cells( feature: dict, og_id: str ) -> list:
     identifiers = sorted( feature[ "orthogroups___identifiers" ].get( og_id, () ) )
+    sequence_count = len( feature[ "orthogroups___sequences" ].get( og_id, () ) )
+    species_count = len( feature[ "orthogroups___species" ].get( og_id, () ) )
     if feature[ "names_blank" ]:
         names = ''
     else:
         names = U.NAME_DELIM.join( feature[ "identifiers___names" ][ identifier ] for identifier in identifiers )
-    return [ U.DELIM.join( identifiers ), names ]
+    return [ str( species_count ), str( sequence_count ), U.DELIM.join( identifiers ), names ]
 
 
 # ===========================================================================

@@ -23,7 +23,10 @@ orthogroups input row count (so a bug in 001 cannot hide behind shared code):
   Per annotation type (Pfam, GO, PANTHER, Annogroups_Pfam, Annogroups_GO,
                        Annogroups_PANTHER, Gene_Families, Gene_Groups,
                        Dark_Proteome, Hotspots)
+    - <Type>_Sequence_Count in [0, Member_Sequence_Count]
+    - <Type>_Species_Count in [0, <Type>_Sequence_Count]
     - identifiers unique and sorted
+    - (<Type>_Sequence_Count == 0) iff (no identifiers)  [coverage consistency]
     - #identifiers == #names, unless the type has blank names (Hotspots), in
       which case the names cell must be empty
 
@@ -112,10 +115,12 @@ def main():
         index_count = header_ids___indices[ "Member_Sequence_Count" ]
         index_singleton = header_ids___indices[ "Is_Singleton" ]
 
-        # { prefix: ( identifiers_index, names_index ) }
+        # { prefix: ( species_count_index, sequence_count_index, identifiers_index, names_index ) }
         type_indices = {}
         for prefix in type_prefixes:
             type_indices[ prefix ] = (
+                header_ids___indices[ f"{prefix}_Species_Count" ],
+                header_ids___indices[ f"{prefix}_Sequence_Count" ],
                 header_ids___indices[ f"{prefix}_Identifiers" ],
                 header_ids___indices[ f"{prefix}_Names" ],
             )
@@ -183,14 +188,23 @@ def main():
                                      f"out of range [0, {member_count}]" )
 
             # per annotation type
-            for prefix, ( identifiers_index, names_index ) in type_indices.items():
+            for prefix, ( species_index, sequence_index, identifiers_index, names_index ) in type_indices.items():
+                species_count = int( parts[ species_index ] ) if parts[ species_index ].lstrip( '-' ).isdigit() else -1
+                sequence_count = int( parts[ sequence_index ] ) if parts[ sequence_index ].lstrip( '-' ).isdigit() else -1
                 identifiers = [ token for token in parts[ identifiers_index ].split( U.DELIM ) if token ]
                 names_cell = parts[ names_index ]
 
+                if sequence_count < 0 or sequence_count > member_count:
+                    failures.append( f"{og_id}: {prefix}_Sequence_Count {sequence_count} out of range [0, {member_count}]" )
+                if species_count < 0 or species_count > sequence_count:
+                    failures.append( f"{og_id}: {prefix}_Species_Count {species_count} out of range [0, {sequence_count}]" )
                 if identifiers != sorted( identifiers ):
                     failures.append( f"{og_id}: {prefix}_Identifiers not sorted" )
                 if len( identifiers ) != len( set( identifiers ) ):
                     failures.append( f"{og_id}: {prefix}_Identifiers contain duplicates" )
+                if ( sequence_count == 0 ) != ( len( identifiers ) == 0 ):
+                    failures.append( f"{og_id}: {prefix} coverage inconsistency: Sequence_Count {sequence_count} "
+                                     f"vs {len( identifiers )} identifier(s)" )
                 if prefix in NAMES_BLANK_PREFIXES:
                     if names_cell != '':
                         failures.append( f"{og_id}: {prefix}_Names must be blank but is {names_cell!r}" )

@@ -83,7 +83,11 @@ def main():
         sys.exit( 1 )
 
     display_names = { "pfam": "Pfam", "go": "GO", "panther": "PANTHER" }
-    extra_prefixes = [ "Gene_Families", "Gene_Groups" ]
+    type_prefixes = (
+        [ display_names.get( source, source.capitalize() ) for source in annotation_sources ]
+        + [ U.annogroup_prefix_for_source( source ) for source in annogroup_sources ]
+        + [ "Gene_Families", "Gene_Groups" ]
+    )
 
     with open( table_path, 'r' ) as input_table:
         header_line = input_table.readline().rstrip( '\n' )
@@ -95,34 +99,18 @@ def main():
         index_count = header_ids___indices[ "Member_Sequence_Count" ]
         index_singleton = header_ids___indices[ "Is_Singleton" ]
 
-        source_indices = {}
-        for source in annotation_sources:
-            display = display_names.get( source, source )
-            source_indices[ source ] = (
-                header_ids___indices[ f"{display}_Identifiers" ],
-                header_ids___indices[ f"{display}_Names" ],
-            )
-
-        extra_indices = {}
-        for prefix in extra_prefixes:
-            extra_indices[ prefix ] = (
+        type_indices = {}
+        for prefix in type_prefixes:
+            type_indices[ prefix ] = (
+                header_ids___indices[ f"{prefix}_Species_Count" ],
+                header_ids___indices[ f"{prefix}_Sequence_Count" ],
                 header_ids___indices[ f"{prefix}_Identifiers" ],
                 header_ids___indices[ f"{prefix}_Names" ],
             )
 
         fixed_and_annotation = { index_orthogroup, index_sequences, index_count, index_singleton }
-        for identifier_index, name_index in source_indices.values():
-            fixed_and_annotation.add( identifier_index )
-            fixed_and_annotation.add( name_index )
-        for identifier_index, name_index in extra_indices.values():
-            fixed_and_annotation.add( identifier_index )
-            fixed_and_annotation.add( name_index )
-        for annogroup_source in annogroup_sources:
-            prefix = U.annogroup_prefix_for_source( annogroup_source )
-            fixed_and_annotation.update( [
-                header_ids___indices[ f"{prefix}_Identifiers" ],
-                header_ids___indices[ f"{prefix}_Names" ],
-            ] )
+        for indices in type_indices.values():
+            fixed_and_annotation.update( indices )
 
         # clade columns = everything else; tips vs full-coverage from header text
         tip_column_indices = []
@@ -142,6 +130,9 @@ def main():
         check( number_of_tips > 0, "Tip (species) columns present", f"found {number_of_tips}" )
         check( len( full_coverage_indices ) > 0, "At least one full-coverage (root) clade column",
                f"found {len( full_coverage_indices )}" )
+
+        check( len( type_indices ) == len( type_prefixes ), "All annotation types present",
+               f"found {len( type_indices )} of {len( type_prefixes )}" )
 
         seen_orthogroups = set()
         duplicate_orthogroups = 0
@@ -182,39 +173,22 @@ def main():
                     failures.append( f"{og_id}: clade column '{header_columns[ index ].split(' (')[0]}' value {value} "
                                      f"out of range [0, {member_count}]" )
 
-            # annotations: identifier/name alignment + uniqueness + delimiter safety
-            for source, ( identifier_index, name_index ) in source_indices.items():
-                identifier_cell = parts[ identifier_index ]
-                name_cell = parts[ name_index ]
-                identifiers = [ token for token in identifier_cell.split( U.DELIM ) if token ]
-                names = [ token for token in name_cell.split( U.NAME_DELIM ) if token ] if name_cell else []
-                if len( identifiers ) != len( names ):
-                    failures.append( f"{og_id}: {source} #identifiers {len( identifiers )} != #names {len( names )}" )
-                if len( identifiers ) != len( set( identifiers ) ):
-                    failures.append( f"{og_id}: {source} identifiers contain duplicates" )
-                if identifiers != sorted( identifiers ):
-                    failures.append( f"{og_id}: {source} identifiers not sorted" )
-
-            for prefix, ( identifier_index, name_index ) in extra_indices.items():
-                identifiers = [ token for token in parts[ identifier_index ].split( U.DELIM ) if token ]
-                names = [ token for token in parts[ name_index ].split( U.NAME_DELIM ) if token ] if parts[ name_index ] else []
-                if len( identifiers ) != len( names ):
-                    failures.append( f"{og_id}: {prefix} #identifiers {len( identifiers )} != #names {len( names )}" )
-                if identifiers != sorted( identifiers ):
-                    failures.append( f"{og_id}: {prefix}_Identifiers not sorted" )
-                if len( identifiers ) != len( set( identifiers ) ):
-                    failures.append( f"{og_id}: {prefix}_Identifiers contain duplicates" )
-
-            for annogroup_source in annogroup_sources:
-                prefix = U.annogroup_prefix_for_source( annogroup_source )
-                identifiers_index = header_ids___indices[ f"{prefix}_Identifiers" ]
-                names_index = header_ids___indices[ f"{prefix}_Names" ]
+            for prefix, ( species_index, sequence_index, identifiers_index, names_index ) in type_indices.items():
+                species_count = int( parts[ species_index ] ) if parts[ species_index ].lstrip( '-' ).isdigit() else -1
+                sequence_count = int( parts[ sequence_index ] ) if parts[ sequence_index ].lstrip( '-' ).isdigit() else -1
                 identifiers = [ token for token in parts[ identifiers_index ].split( U.DELIM ) if token ]
                 names = [ token for token in parts[ names_index ].split( U.NAME_DELIM ) if token ] if parts[ names_index ] else []
+                if sequence_count < 0 or sequence_count > member_count:
+                    failures.append( f"{og_id}: {prefix}_Sequence_Count {sequence_count} out of range [0, {member_count}]" )
+                if species_count < 0 or species_count > sequence_count:
+                    failures.append( f"{og_id}: {prefix}_Species_Count {species_count} out of range [0, {sequence_count}]" )
                 if identifiers != sorted( identifiers ):
                     failures.append( f"{og_id}: {prefix}_Identifiers not sorted" )
                 if len( identifiers ) != len( set( identifiers ) ):
                     failures.append( f"{og_id}: {prefix}_Identifiers contain duplicates" )
+                if ( sequence_count == 0 ) != ( len( identifiers ) == 0 ):
+                    failures.append( f"{og_id}: {prefix} coverage inconsistency: Sequence_Count {sequence_count} "
+                                     f"vs {len( identifiers )} identifier(s)" )
                 if len( identifiers ) != len( names ):
                     failures.append( f"{og_id}: {prefix} #identifiers {len( identifiers )} != #names {len( names )}" )
 
@@ -241,8 +215,7 @@ def main():
         f"Species (tip) columns: {number_of_tips}",
         f"Full-coverage (root) clade columns: {len( full_coverage_indices )}",
         f"Total clade columns: {len( clade_column_indices )}",
-        f"Annotation sources: {', '.join( annotation_sources )}",
-        f"Annogroup sources: {', '.join( annogroup_sources )}",
+        f"Annotation types: {', '.join( type_prefixes )}",
         "",
         "## Named checks",
         "",

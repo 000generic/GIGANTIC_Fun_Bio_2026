@@ -15,10 +15,9 @@
 #
 # Builds ONE table with one row per OrthoHMM orthogroup (requested by Leonid):
 #   Orthogroup_ID | Sequence_IDs | Member_Sequence_Count | Is_Singleton
-#   | Pfam_Identifiers | Pfam_Names | GO_Identifiers | GO_Names
-#   | PANTHER_Identifiers | PANTHER_Names
-#   | Annogroups_Pfam / Annogroups_GO / Annogroups_PANTHER (2 cols each: Identifiers + Names)
-#   | Gene_Families / Gene_Groups (2 cols each: Identifiers + Names)
+#   | Pfam / GO / PANTHER (4 cols each: species count, sequence count, identifiers, names)
+#   | Annogroups_Pfam / Annogroups_GO / Annogroups_PANTHER (4 cols each)
+#   | Gene_Families / Gene_Groups (4 cols each)
 #   | <one column per non-redundant species-tree clade/species: member counts>
 #
 # The species-tree deconvolution columns are the UNION of clades (internal nodes
@@ -37,8 +36,9 @@ run_label: "species70_OrthoHMM_leonid_08july2026"
 species_set_name: "species70"
 
 # Annotation sources to aggregate per orthogroup (non-redundant), IN OUTPUT
-# COLUMN ORDER. Each becomes a paired <Display>_Identifiers / <Display>_Names
-# column. These are annogroups subproject SOURCE names.
+# COLUMN ORDER. Each becomes four columns: <Display>_Species_Count,
+# <Display>_Sequence_Count, <Display>_Identifiers, <Display>_Names.
+# These are annogroups subproject SOURCE names.
 annotation_sources:
   - "pfam"
   - "go"
