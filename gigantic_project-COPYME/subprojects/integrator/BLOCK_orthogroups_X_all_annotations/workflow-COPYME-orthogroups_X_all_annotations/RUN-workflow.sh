@@ -221,17 +221,19 @@ for old in "${SHARED_DIR}"/*.tsv; do
     [ -L "$old" ] && rm -f "$old"
 done
 
-declare -A TABLE_MAP=(
-    ["1-output/1_ai-orthogroups_X_all_annotations.tsv"]="1_ai-orthogroups_X_all_annotations.tsv"
-    ["2-output/2_ai-validation_report.txt"]="2_ai-validation_report.txt"
-)
-for src_rel in "${!TABLE_MAP[@]}"; do
-    clean_name="${TABLE_MAP[$src_rel]}"
-    if [ -f "OUTPUT_pipeline/${src_rel}" ]; then
-        ln -sf "../../../BLOCK_orthogroups_X_all_annotations/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/${src_rel}" \
-            "${SHARED_DIR}/${clean_name}"
+POINTER="OUTPUT_pipeline/1-output/1_ai-output_table_filename.txt"
+if [ -f "${POINTER}" ]; then
+    TABLE_BASENAME=$(tr -d '\n\r' < "${POINTER}")
+    if [ -f "OUTPUT_pipeline/1-output/${TABLE_BASENAME}" ]; then
+        ln -sf "../../../BLOCK_orthogroups_X_all_annotations/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/1-output/${TABLE_BASENAME}" \
+            "${SHARED_DIR}/${TABLE_BASENAME}"
     fi
-done
+fi
+
+if [ -f "OUTPUT_pipeline/2-output/2_ai-validation_report.txt" ]; then
+    ln -sf "../../../BLOCK_orthogroups_X_all_annotations/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/2-output/2_ai-validation_report.txt" \
+        "${SHARED_DIR}/2_ai-validation_report.txt"
+fi
 
 SYMLINK_COUNT=$(find "${SHARED_DIR}" -type l 2>/dev/null | wc -l)
 echo "  output_to_input/BLOCK_orthogroups_X_all_annotations/${RUN_LABEL}/ -> ${SYMLINK_COUNT} symlinks created"

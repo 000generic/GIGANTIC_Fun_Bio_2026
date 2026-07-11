@@ -29,6 +29,7 @@ All scripts in this workflow import this module via:
     import utils_orthogroups_X_leonid
 """
 
+from datetime import datetime
 from pathlib import Path
 import yaml
 
@@ -40,6 +41,51 @@ DELIM = ','
 # contain commas, semicolons, AND pipes; ' // ' has zero collisions in the
 # species70 pfam/go/panther maps.
 NAME_DELIM = ' // '
+
+# Main output table stem (timestamp suffix appended at run time).
+OUTPUT_TABLE_STEM = "1_ai-orthogroups_X_leonid"
+
+MONTH_NAMES = (
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+)
+
+
+def filename_timestamp_suffix( when: datetime = None ) -> str:
+    """Return a run timestamp suffix like _july11_1606 (month name + day + hhmm)."""
+    when = when or datetime.now()
+    month = MONTH_NAMES[ when.month - 1 ]
+    return f"_{month}{when.day}_{when.hour:02d}{when.minute:02d}"
+
+
+def build_timestamped_table_filename( table_stem: str, when: datetime = None ) -> str:
+    """Build the headline table filename: <stem>_july11_1606.tsv"""
+    return f"{table_stem}{filename_timestamp_suffix( when )}.tsv"
+
+
+def write_output_table_pointer( output_dir: Path, table_filename: str ):
+    """Record the timestamped table filename for validation and RUN-workflow.sh."""
+    pointer_path = output_dir / "1-output" / "1_ai-output_table_filename.txt"
+    pointer_path.write_text( table_filename + '\n' )
+
+
+def resolve_output_table_path( output_base: Path ) -> Path:
+    """
+    Locate the Script 001 output table: pointer file first, then newest timestamped
+    match, then legacy fixed-name file.
+    """
+    output_dir = output_base / "1-output"
+    pointer_path = output_dir / "1_ai-output_table_filename.txt"
+    if pointer_path.is_file():
+        table_filename = pointer_path.read_text().strip()
+        table_path = output_dir / table_filename
+        if table_path.is_file():
+            return table_path
+    matches = sorted( output_dir.glob( f"{OUTPUT_TABLE_STEM}_*.tsv" ) )
+    if matches:
+        return matches[ -1 ]
+    legacy_path = output_dir / f"{OUTPUT_TABLE_STEM}.tsv"
+    return legacy_path
 
 
 def load_config( config_path: str ) -> dict:

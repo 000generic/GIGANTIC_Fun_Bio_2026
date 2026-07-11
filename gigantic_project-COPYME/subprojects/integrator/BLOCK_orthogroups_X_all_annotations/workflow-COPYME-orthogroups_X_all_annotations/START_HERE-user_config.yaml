@@ -15,10 +15,7 @@
 #
 # Builds ONE table with one row per OrthoHMM orthogroup, integrating TEN
 # annotation types across all member sequences of each orthogroup. For every
-# annotation type the table reports FOUR columns:
-#     <Type>_Species_Count      non-redundant count of species (Genus_species)
-#                               among member sequences carrying >=1 annotation
-#     <Type>_Sequence_Count     count of member sequences carrying >=1 annotation
+# annotation type the table reports TWO columns:
 #     <Type>_Identifiers        comma-delimited non-redundant identifiers
 #     <Type>_Names              ' // '-delimited names aligned to identifiers
 #

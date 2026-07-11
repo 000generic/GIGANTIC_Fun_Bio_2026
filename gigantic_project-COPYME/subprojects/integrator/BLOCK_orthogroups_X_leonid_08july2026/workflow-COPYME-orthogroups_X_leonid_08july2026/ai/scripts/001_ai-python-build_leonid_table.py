@@ -11,15 +11,17 @@ Each row is ONE OrthoHMM orthogroup. Columns, in order:
   Sequence_IDs                     comma-delimited full GIGANTIC member IDs
   Member_Sequence_Count            integer
   Is_Singleton                     yes | no
-  Pfam_Accessions                  comma-delimited non-redundant Pfam accessions
-  Pfam_Names                       ' // '-delimited names (aligned to accessions)
-  GO_Accessions                    comma-delimited non-redundant GO IDs
-  GO_Names                         ' // '-delimited names (aligned to accessions)
-  PANTHER_Accessions               comma-delimited non-redundant PANTHER accessions
-  PANTHER_Names                    ' // '-delimited names (aligned to accessions)
-  Annogroups_Pfam (4 cols)         species/sequence counts + Annogroup_IDs + names
-  Annogroups_GO (4 cols)           same pattern (ALL annogroup types)
-  Annogroups_PANTHER (4 cols)      same pattern (ALL annogroup types)
+  Pfam_Identifiers                 comma-delimited non-redundant Pfam accessions
+  Pfam_Names                       ' // '-delimited names (aligned to identifiers)
+  GO_Identifiers                   comma-delimited non-redundant GO IDs
+  GO_Names                         ' // '-delimited names (aligned to identifiers)
+  PANTHER_Identifiers              comma-delimited non-redundant PANTHER accessions
+  PANTHER_Names                    ' // '-delimited names (aligned to identifiers)
+  Annogroups_Pfam (2 cols)         Annogroup_IDs + names
+  Annogroups_GO (2 cols)           same pattern (ALL annogroup types)
+  Annogroups_PANTHER (2 cols)      same pattern (ALL annogroup types)
+  Gene_Families (2 cols)           family slug identifiers + names
+  Gene_Groups (2 cols)             gene group identifiers + names
   <clade / species columns...>     species-tree deconvolution (see below)
 
 Species-tree deconvolution
@@ -68,6 +70,21 @@ def guard_name( label: str, identifier: str, name: str ):
         print( f"CRITICAL ERROR: {label} name for identifier {identifier} contains the NAME-column "
                f"delimiter {U.NAME_DELIM!r} and would corrupt the *_Names list: {name!r}", file = sys.stderr )
         sys.exit( 1 )
+
+
+def new_feature( prefix: str, label: str ) -> dict:
+    return {
+        "prefix": prefix,
+        "label": label,
+        "orthogroups___identifiers": defaultdict( set ),
+        "identifiers___names": {},
+        "skipped_non_orthogroup": 0,
+    }
+
+
+def add_feature_annotation( feature: dict, og_id: str, identifier: str, name: str ):
+    feature[ "orthogroups___identifiers" ][ og_id ].add( identifier )
+    feature[ "identifiers___names" ][ identifier ] = name
 
 
 def new_annogroup_feature( prefix: str, label: str ) -> dict:
@@ -395,8 +412,6 @@ def annogroup_feature_headers( feature: dict ) -> list:
     prefix = feature[ "prefix" ]
     label = feature[ "label" ]
     return [
-        f"{prefix}_Species_Count (non-redundant count of Genus_species among member sequences carrying at least one {label})",
-        f"{prefix}_Sequence_Count (count of member sequences carrying at least one {label})",
         f"{prefix}_Identifiers (comma delimited non-redundant {label} identifiers across all member sequences)",
         f"{prefix}_Names (' // ' delimited {label} names aligned to {prefix}_Identifiers; "
         f"' // ' used because names may contain commas, semicolons, or pipes)",
@@ -405,10 +420,114 @@ def annogroup_feature_headers( feature: dict ) -> list:
 
 def annogroup_feature_cells( feature: dict, og_id: str ) -> list:
     identifiers = sorted( feature[ "orthogroups___identifiers" ].get( og_id, () ) )
-    sequence_count = len( feature[ "orthogroups___sequences" ].get( og_id, () ) )
-    species_count = len( feature[ "orthogroups___species" ].get( og_id, () ) )
     names = U.NAME_DELIM.join( feature[ "identifiers___names" ][ identifier ] for identifier in identifiers )
-    return [ str( species_count ), str( sequence_count ), U.DELIM.join( identifiers ), names ]
+    return [ U.DELIM.join( identifiers ), names ]
+
+
+def feature_headers( feature: dict ) -> list:
+    prefix = feature[ "prefix" ]
+    label = feature[ "label" ]
+    return [
+        f"{prefix}_Identifiers (comma delimited non-redundant {label} identifiers across all member sequences)",
+        f"{prefix}_Names (' // ' delimited {label} names aligned to {prefix}_Identifiers; "
+        f"' // ' used because names may contain commas, semicolons, or pipes)",
+    ]
+
+
+def feature_cells( feature: dict, og_id: str ) -> list:
+    identifiers = sorted( feature[ "orthogroups___identifiers" ].get( og_id, () ) )
+    names = U.NAME_DELIM.join( feature[ "identifiers___names" ][ identifier ] for identifier in identifiers )
+    return [ U.DELIM.join( identifiers ), names ]
+
+
+# ---------------------------------------------------------------------------
+# Gene families / gene groups (invert AGS FASTAs; LOG-AND-SKIP)
+# ---------------------------------------------------------------------------
+def iter_fasta_member_headers( fasta_path: Path ):
+    with open( fasta_path, 'r' ) as input_fasta:
+        for line in input_fasta:
+            if not line.startswith( '>' ):
+                continue
+            header = line[ 1: ].strip()
+            if header.startswith( 'g_' ):
+                yield header
+
+
+def load_gene_families( feature: dict, gene_families_dir: Path, sequences___orthogroups: dict ):
+    if not gene_families_dir.is_dir():
+        print( f"CRITICAL ERROR: gene_families directory not found: {gene_families_dir}", file = sys.stderr )
+        sys.exit( 1 )
+    family_count = 0
+    for family_dir in sorted( gene_families_dir.iterdir() ):
+        if not family_dir.is_dir():
+            continue
+        ags_files = sorted( family_dir.rglob( "16_ai-ags-*.aa" ) )
+        if not ags_files:
+            continue
+        family_slug = family_dir.name
+        family_count += 1
+        for ags_file in ags_files:
+            for sequence_id in iter_fasta_member_headers( ags_file ):
+                og_id = sequences___orthogroups.get( sequence_id )
+                if og_id is None:
+                    feature[ "skipped_non_orthogroup" ] += 1
+                    continue
+                add_feature_annotation( feature, og_id, family_slug, family_slug )
+    print( f"[001] gene_families: {family_count} families scanned" )
+
+
+def load_gene_group_metadata( metadata_path: Path ) -> dict:
+    sanitized___id_name = {}
+    if not metadata_path.is_file():
+        print( f"[001] WARNING: gene_groups HGNC metadata not found ({metadata_path}); "
+               f"gene group ids will fall back to sanitized names" )
+        return sanitized___id_name
+    with open( metadata_path, 'r' ) as input_metadata:
+        header_ids___indices = U.build_header_index( input_metadata.readline() )
+        index_id = header_ids___indices[ "Gene_Group_ID" ]
+        index_name = header_ids___indices[ "Gene_Group_Name" ]
+        index_sanitized = header_ids___indices[ "Sanitized_Name" ]
+        for line in input_metadata:
+            line = line.rstrip( '\n' )
+            if not line:
+                continue
+            parts = line.split( '\t' )
+            sanitized___id_name[ parts[ index_sanitized ] ] = ( parts[ index_id ], parts[ index_name ] )
+    return sanitized___id_name
+
+
+GENE_GROUP_NAME_FALLBACKS = { "snap_family": "Synaptosomal-Associated Proteins" }
+
+
+def load_gene_groups( feature: dict, gene_groups_dir: Path, sanitized___id_name: dict,
+                    sequences___orthogroups: dict ):
+    if not gene_groups_dir.is_dir():
+        print( f"CRITICAL ERROR: gene_groups directory not found: {gene_groups_dir}", file = sys.stderr )
+        sys.exit( 1 )
+    group_dirs_seen = set()
+    for instance_dir in sorted( gene_groups_dir.glob( "gene_groups-*" ) ):
+        for ags_file in sorted( instance_dir.rglob( "16_ai-ags-*.aa" ) ):
+            sanitized = None
+            for part in ags_file.parts:
+                if part.startswith( "gene_group-" ):
+                    sanitized = part[ len( "gene_group-" ): ]
+                    break
+            if sanitized is None:
+                continue
+            group_dirs_seen.add( sanitized )
+            if sanitized in sanitized___id_name:
+                gene_group_id, gene_group_name = sanitized___id_name[ sanitized ]
+            else:
+                gene_group_id = sanitized
+                gene_group_name = GENE_GROUP_NAME_FALLBACKS.get( sanitized, sanitized )
+            guard_name( feature[ "label" ], gene_group_id, gene_group_name )
+            for sequence_id in iter_fasta_member_headers( ags_file ):
+                og_id = sequences___orthogroups.get( sequence_id )
+                if og_id is None:
+                    feature[ "skipped_non_orthogroup" ] += 1
+                    continue
+                add_feature_annotation( feature, og_id, gene_group_id, gene_group_name )
+    print( f"[001] gene_groups: {len( group_dirs_seen )} groups scanned" )
 
 
 # ---------------------------------------------------------------------------
@@ -442,11 +561,15 @@ def main():
     orthogroups_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "orthogroups_file" ] )
     annogroups_dir = U.resolve_input_path( workflow_root, config[ "inputs" ][ "annogroups_dir" ] )
     clade_map_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "clade_species_mappings" ] )
+    gene_families_dir = U.resolve_input_path( workflow_root, config[ "inputs" ][ "gene_families_dir" ] )
+    gene_groups_dir = U.resolve_input_path( workflow_root, config[ "inputs" ][ "gene_groups_dir" ] )
+    gene_groups_hgnc_metadata = U.resolve_input_path( workflow_root, config[ "inputs" ][ "gene_groups_hgnc_metadata" ] )
 
     output_base = Path( args.output_dir )
     output_dir = output_base / "1-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_path = output_dir / "1_ai-orthogroups_X_leonid.tsv"
+    table_filename = U.build_timestamped_table_filename( U.OUTPUT_TABLE_STEM )
+    output_path = output_dir / table_filename
 
     # ---- inputs exist? -----------------------------------------------------
     for required in ( orthogroups_path, clade_map_path ):
@@ -509,6 +632,17 @@ def main():
         print( f"[001] {prefix}: {len( feature[ 'identifiers___names' ] )} annogroup identifiers; "
                f"{len( feature[ 'orthogroups___identifiers' ] )} orthogroups carry >=1 annogroup" )
 
+    feature_gene_families = new_feature( "Gene_Families", "gene family" )
+    load_gene_families( feature_gene_families, gene_families_dir, sequences___orthogroups )
+    print( f"[001] Gene_Families: {len( feature_gene_families[ 'orthogroups___identifiers' ] )} orthogroups; "
+           f"{feature_gene_families[ 'skipped_non_orthogroup' ]} non-orthogroup member(s) skipped (logged)" )
+
+    sanitized___id_name = load_gene_group_metadata( gene_groups_hgnc_metadata )
+    feature_gene_groups = new_feature( "Gene_Groups", "gene group" )
+    load_gene_groups( feature_gene_groups, gene_groups_dir, sanitized___id_name, sequences___orthogroups )
+    print( f"[001] Gene_Groups: {len( feature_gene_groups[ 'orthogroups___identifiers' ] )} orthogroups; "
+           f"{feature_gene_groups[ 'skipped_non_orthogroup' ]} non-orthogroup member(s) skipped (logged)" )
+
     # ---- header ------------------------------------------------------------
     header_columns = [
         "Orthogroup_ID (OrthoHMM orthogroup identifier)",
@@ -521,12 +655,14 @@ def main():
         # canonical display labels: Pfam, GO, PANTHER
         display = { "pfam": "Pfam", "go": "GO", "panther": "PANTHER" }.get( source, label )
         header_columns.append(
-            f"{display}_Accessions (comma delimited non-redundant {display} accessions across all member sequences)" )
+            f"{display}_Identifiers (comma delimited non-redundant {display} identifiers across all member sequences)" )
         header_columns.append(
             f"{display}_Names ('space slash slash space' delimited {display} names aligned to "
-            f"{display}_Accessions; delimited by ' // ' because names may contain commas, semicolons, or pipes)" )
+            f"{display}_Identifiers; delimited by ' // ' because names may contain commas, semicolons, or pipes)" )
     for feature in annogroup_features:
         header_columns.extend( annogroup_feature_headers( feature ) )
+    header_columns.extend( feature_headers( feature_gene_families ) )
+    header_columns.extend( feature_headers( feature_gene_groups ) )
     header_columns.extend(
         clade_header( clade, clades___descendant_count, clades___species, clades___structures, total_selected )
         for clade in union_ordered_clades )
@@ -573,11 +709,14 @@ def main():
                 row.append( U.NAME_DELIM.join( names ) )
             for feature in annogroup_features:
                 row.extend( annogroup_feature_cells( feature, og_id ) )
+            row.extend( feature_cells( feature_gene_families, og_id ) )
+            row.extend( feature_cells( feature_gene_groups, og_id ) )
             row.extend( str( clades___counts.get( clade, 0 ) ) for clade in union_ordered_clades )
             output_table.write( '\t'.join( row ) + '\n' )
             rows_written += 1
 
     print( f"[001] wrote {rows_written} orthogroup rows ({len( header_columns )} columns) -> {output_path}" )
+    U.write_output_table_pointer( output_base, table_filename )
 
 
 if __name__ == '__main__':

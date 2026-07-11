@@ -15,9 +15,10 @@
 #
 # Builds ONE table with one row per OrthoHMM orthogroup (requested by Leonid):
 #   Orthogroup_ID | Sequence_IDs | Member_Sequence_Count | Is_Singleton
-#   | Pfam_Accessions | Pfam_Names | GO_Accessions | GO_Names
-#   | PANTHER_Accessions | PANTHER_Names
-#   | Annogroups_Pfam / Annogroups_GO / Annogroups_PANTHER (4 cols each)
+#   | Pfam_Identifiers | Pfam_Names | GO_Identifiers | GO_Names
+#   | PANTHER_Identifiers | PANTHER_Names
+#   | Annogroups_Pfam / Annogroups_GO / Annogroups_PANTHER (2 cols each: Identifiers + Names)
+#   | Gene_Families / Gene_Groups (2 cols each: Identifiers + Names)
 #   | <one column per non-redundant species-tree clade/species: member counts>
 #
 # The species-tree deconvolution columns are the UNION of clades (internal nodes
@@ -36,7 +37,7 @@ run_label: "species70_OrthoHMM_leonid_08july2026"
 species_set_name: "species70"
 
 # Annotation sources to aggregate per orthogroup (non-redundant), IN OUTPUT
-# COLUMN ORDER. Each becomes a paired <Display>_Accessions / <Display>_Names
+# COLUMN ORDER. Each becomes a paired <Display>_Identifiers / <Display>_Names
 # column. These are annogroups subproject SOURCE names.
 annotation_sources:
   - "pfam"
@@ -61,6 +62,11 @@ inputs:
   #   2_ai-<source>-annogroup_map.tsv         (accession -> name, feature rows)
   #   2_ai-<source>-annogroup_membership.tsv  (sequence -> feature annogroup)
   annogroups_dir: "../../../annogroups/output_to_input/BLOCK_build_annogroups"
+
+  # Gene families / gene groups (membership via AGS FASTA headers)
+  gene_families_dir: "../../../trees_gene_families/output_to_input"
+  gene_groups_dir: "../../../trees_gene_groups/output_to_input"
+  gene_groups_hgnc_metadata: "../../../trees_gene_groups/gene_groups-hugo_hgnc/STEP_0-hgnc_gene_groups/workflow-RUN_1-hgnc_gene_groups/OUTPUT_pipeline/2-output/2_ai-gene_group_metadata.tsv"
 
   # Clade species sets (from trees_species). Each clade_id_name resolves to its
   # descendant species; GIGANTIC Rule 6 makes it identical across the structures
