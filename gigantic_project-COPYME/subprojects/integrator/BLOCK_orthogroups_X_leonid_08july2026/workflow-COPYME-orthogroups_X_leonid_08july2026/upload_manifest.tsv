@@ -1,0 +1,24 @@
+# GIGANTIC upload_manifest.tsv — integrator / BLOCK_orthogroups_X_leonid_08july2026
+# ============================================================================
+# Publishes the per-orthogroup Leonid table (+ validation report). Source globs
+# are relative to this manifest's directory (the workflow-RUN_* root).
+#
+# Build with (from the integrator subproject root):
+#   bash RUN-update_upload_to_server.sh
+# (which calls ../../server/ai/update_upload_to_server.py --subproject-dir .)
+#
+# Published files land at:
+#   ../../upload_to_server/BLOCK_orthogroups_X_leonid_08july2026/workflow-RUN_*-orthogroups_X_leonid_08july2026/N-output/
+#
+# This is a COPYME template (single source of truth). The discovery helper
+# ignores manifests in workflow-COPYME-* dirs; copy this file into the canonical
+# workflow-RUN_* dir for it to publish (per gigantic_conventions §38/§39).
+# ============================================================================
+
+source_path	include	dest_name	display_label	file_category	description	order	dir_label
+#
+# ----- Headline deliverable: the per-orthogroup table -----
+OUTPUT_pipeline/1-output/1_ai-orthogroups_X_leonid.tsv	yes		Orthogroups X Leonid table	data	One row per OrthoHMM orthogroup: Orthogroup_ID, comma-delimited member sequence IDs, member count, singleton flag, non-redundant Pfam/GO/PANTHER accessions (comma-delimited) with paired names (' // '-delimited, since names may contain commas, semicolons, or pipes), and a species-tree deconvolution — one column per non-redundant clade/species across structures 001, 003, 031, 032 giving the count of member sequences within that clade (each header records which of the four structures the clade appears in).	10	orthogroup table
+#
+# ----- QC: validation report -----
+OUTPUT_pipeline/2-output/2_ai-validation_report.txt	yes		Validation report	qc	Fail-fast validation cross-checks (row count vs input orthogroups, member-count vs sequence-ID count, singleton flag, deconvolution completeness where the species columns sum to the member count and root clades equal it, and accession/name alignment). Status PASS means every cross-check held.	20	quality control

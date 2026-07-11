@@ -19,26 +19,38 @@ project_name: "species70_secretome_2026may"
 # Default points at the canonical file the HTML builder downloads to.
 filter_manifest_path: "INPUT_user/secretome_filter_manifest.json"
 
-# STEP_1 evidence tables: one per species (96-column wide TSVs). Driven by
-# the species set used in STEP_1.
-evidence_table_dir: "/blue/moroz/share/edsinger/projects/ai_ctenophores/github-gigantic_1/GIGANTIC/gigantic_project-COPYME/subprojects/secretome/output_to_input/BLOCK_secretome_evidence_table"
+# ----------------------------------------------------------------------------
+# NOTE ON PATHS: all upstream input paths below are RELATIVE to this workflow
+# directory and are consumed via each upstream subproject's canonical
+# output_to_input/ interface (portable across machines and RUN copies).
+# main.nf passes an absolute --workflow-root (${projectDir}/..) to the augment
+# scripts, which resolve these relative paths against it so they survive
+# NextFlow's work/ execution dirs. The per-species evidence-table glob is
+# resolved by NextFlow against the launch directory (this workflow dir).
+# ----------------------------------------------------------------------------
+
+# STEP_1 evidence tables: one per species (wide per-protein TSVs). Driven by
+# the species set used in STEP_1 (this subproject's output_to_input interface).
+evidence_table_dir: "../../output_to_input/STEP_1-build_evidence_table"
 
 # Proteome FASTAs (canonical species70). Used for cysteine counting in
 # script 003.
-proteome_dir: "/blue/moroz/share/edsinger/projects/ai_ctenophores/github-gigantic_1/GIGANTIC/gigantic_project-COPYME/subprojects/genomesDB/output_to_input/STEP_4-create_final_species_set/species70_gigantic_T1_proteomes"
+proteome_dir: "../../../genomesDB/output_to_input/STEP_4-create_final_species_set/species70_gigantic_T1_proteomes"
 
 # Long-format annotation database (for re-reading per-protein pfam rows to
-# compute pfam_Max_Hits_Per_Single_Accession in script 003).
-annotation_database_dir: "/blue/moroz/share/edsinger/projects/ai_ctenophores/github-gigantic_1/GIGANTIC/gigantic_project-COPYME/subprojects/annotations_hmms/BLOCK_build_annotation_database/workflow-RUN_1-build_annotation_database/OUTPUT_pipeline/annotation_databases"
+# compute pfam_Max_Hits_Per_Single_Accession in script 003). Consumed via the
+# annotations_hmms output_to_input interface.
+annotation_database_dir: "../../../annotations_hmms/output_to_input/BLOCK_build_annotation_database/annotation_databases"
 
 # Orthogroups (single big TSV; cols 2+ are space-separated protein IDs in the
 # orthogroup). Script 005 builds per-protein orthogroup lookups + extracts
-# model-species (human/fly/worm/aplysia) ortholog lists.
-orthogroups_tsv: "/blue/moroz/share/edsinger/projects/ai_ctenophores/github-gigantic_1/GIGANTIC/gigantic_project-COPYME/subprojects/orthogroups/output_to_input/BLOCK_orthohmm/orthogroups_gigantic_ids.tsv"
+# model-species (human/fly/worm/aplysia) ortholog lists. Canonical species70
+# input is BLOCK_orthohmm_GIGANTIC (202,994 orthogroups / 1,375,926 members).
+orthogroups_tsv: "../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv"
 
 # BLASTP top-10 hits per protein (one TSV per species). Includes the new
 # Top_10_Hit_E_Values column (commit 56e423f, 2026-05-25).
-blastp_top_hits_dir: "/blue/moroz/share/edsinger/projects/ai_ctenophores/github-gigantic_1/GIGANTIC/gigantic_project-COPYME/subprojects/one_direction_homologs/output_to_input/BLOCK_diamond_ncbi_nr/ncbi_nr_top_hits"
+blastp_top_hits_dir: "../../../one_direction_homologs/output_to_input/BLOCK_diamond_ncbi_nr/ncbi_nr_top_hits"
 
 # ----------------------------------------------------------------------------
 # Resources

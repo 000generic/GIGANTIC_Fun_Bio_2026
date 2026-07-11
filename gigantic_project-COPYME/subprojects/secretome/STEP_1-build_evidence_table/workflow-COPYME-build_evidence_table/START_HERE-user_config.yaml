@@ -20,7 +20,8 @@
 project_name: "species70_secretome_evidence_table_2026may23"
 
 # Path to the long-format standardized annotation database produced by
-# annotations_hmms/BLOCK_build_annotation_database. Expected layout under
+# annotations_hmms/BLOCK_build_annotation_database, consumed via that
+# subproject's canonical output_to_input/ interface. Expected layout under
 # this directory:
 #   database_pfam/         gigantic_annotations-database_pfam-<phyloname>.tsv
 #   database_signalp_fast/ gigantic_annotations-database_signalp_fast-<phyloname>.tsv
@@ -31,7 +32,11 @@ project_name: "species70_secretome_evidence_table_2026may23"
 #   database_interproscan/ ( IPR summary )
 #   database_go/           ( GO terms )
 #   database_cdd/  database_funfam/  ... ( IPR sub-databases that were run )
-annotation_database_dir: "/blue/moroz/share/edsinger/projects/ai_ctenophores/github-gigantic_1/GIGANTIC/gigantic_project-COPYME/subprojects/annotations_hmms/BLOCK_build_annotation_database/workflow-RUN_1-build_annotation_database/OUTPUT_pipeline/annotation_databases"
+#
+# Path is RELATIVE to this workflow directory (portable across machines and
+# RUN copies). The pipeline resolves it against the workflow root before use,
+# so it survives NextFlow's work/ execution dirs.
+annotation_database_dir: "../../../annotations_hmms/output_to_input/BLOCK_build_annotation_database/annotation_databases"
 
 # Path to the DeepLoc 2.0 CSV outputs (one CSV per species). Used to augment
 # the evidence table with all 14 per-compartment / membrane-type probabilities
@@ -40,7 +45,10 @@ annotation_database_dir: "/blue/moroz/share/edsinger/projects/ai_ctenophores/git
 # recover Cytoplasm/Nucleus/Extracellular/Cell membrane/Mitochondrion/
 # Plastid/Endoplasmic reticulum/Lysosome+Vacuole/Golgi apparatus/Peroxisome
 # probabilities + Peripheral/Transmembrane/Lipid anchor/Soluble probabilities.
-deeploc_csv_dir: "/blue/moroz/share/edsinger/projects/ai_ctenophores/github-gigantic_1/GIGANTIC/gigantic_project-COPYME/subprojects/annotations_hmms/output_to_input/BLOCK_deeploc"
+#
+# Path is RELATIVE to this workflow directory (resolved against the workflow
+# root at runtime so it survives NextFlow's work/ execution dirs).
+deeploc_csv_dir: "../../../annotations_hmms/output_to_input/BLOCK_deeploc"
 
 # =============================================================================
 # Which annotation databases to include in the evidence table (whitelist)

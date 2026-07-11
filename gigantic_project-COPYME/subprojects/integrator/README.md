@@ -23,7 +23,7 @@ biology — it combines existing results.
 - Parent project landing page: [`../../README.md`](../../README.md)
 - Parent project AI guide: [`../../AI_GUIDE.md`](../../AI_GUIDE.md)
 - This subproject's AI guide: [`AI_GUIDE.md`](AI_GUIDE.md)
-- BLOCKs: [`BLOCK_orthogroups_ocl_X_features/`](BLOCK_orthogroups_ocl_X_features/), [`BLOCK_annotations_X_orthogroups/`](BLOCK_annotations_X_orthogroups/), [`BLOCK_species_X_all_annotations/`](BLOCK_species_X_all_annotations/), [`BLOCK_ambiguous_nodes_X_annogroups/`](BLOCK_ambiguous_nodes_X_annogroups/)
+- BLOCKs: [`BLOCK_orthogroups_ocl_X_features/`](BLOCK_orthogroups_ocl_X_features/), [`BLOCK_annotations_X_orthogroups/`](BLOCK_annotations_X_orthogroups/), [`BLOCK_species_X_all_annotations/`](BLOCK_species_X_all_annotations/), [`BLOCK_ambiguous_nodes_X_annogroups/`](BLOCK_ambiguous_nodes_X_annogroups/), [`BLOCK_orthogroups_X_leonid_08july2026/`](BLOCK_orthogroups_X_leonid_08july2026/)
 
 ## BLOCKs
 
@@ -33,6 +33,7 @@ biology — it combines existing results.
 | [`BLOCK_annotations_X_orthogroups`](BLOCK_annotations_X_orthogroups/) | pfam annogroups × orthogroups, focused on non-bilaterian-metazoan orthogroups (structure-independent) | Built 2026-06-09 (scaffold + scripts; join validated end-to-end against real data) |
 | [`BLOCK_species_X_all_annotations`](BLOCK_species_X_all_annotations/) | per-species proteome (one row per protein) × every per-gene annotation (gene sizes, hotspots, nr hits, annotations_hmms, annogroups, orthogroups, secretome, AGS membership, dark) + per-structure orthogroup/annogroup OCL | Built 2026-06-28 (scaffold + scripts; not yet run end-to-end) |
 | [`BLOCK_ambiguous_nodes_X_annogroups`](BLOCK_ambiguous_nodes_X_annogroups/) | annogroups species-tree deconvolution collapsed to ONLY the ambiguous nodes (clades present in some but not all structures), in one/some/all structure scopes, per source (pfam, go, panther) | Built 2026-06-27 (scaffold + scripts; not yet run end-to-end) |
+| [`BLOCK_orthogroups_X_leonid_08july2026`](BLOCK_orthogroups_X_leonid_08july2026/) | one row per OrthoHMM orthogroup × non-redundant Pfam/GO/PANTHER annotations × species-tree deconvolution (per-clade/per-species member counts across structures 001, 003, 031, 032) — a Leonid request | Built 2026-07-08 (scaffold + scripts; not yet run end-to-end) |
 
 Future BLOCKs will integrate other combinations (each its own independent
 BLOCK). The `ambiguous_nodes_X_*` family is a series: it collapses an upstream

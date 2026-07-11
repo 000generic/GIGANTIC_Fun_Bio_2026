@@ -8,12 +8,12 @@ Human:   Eric Edsinger
 
 ## Where this fits
 
-- Parent BLOCK guide: [`../../AI_GUIDE.md`](../../AI_GUIDE.md) — BLOCK_secretome_evidence_table
+- Parent BLOCK guide: [`../../AI_GUIDE.md`](../../AI_GUIDE.md) — STEP_1-build_evidence_table
 - Parent (subproject AI guide): [`../../../AI_GUIDE.md`](../../../AI_GUIDE.md) — secretome overview
 - Parent (project): [`../../../../AI_GUIDE.md`](../../../../AI_GUIDE.md)
 - Workflow README: [`../README.md`](../README.md)
 - Reads from: `../../../../annotations_hmms/output_to_input/BLOCK_build_annotation_database/` + `../INPUT_user/proteome_manifest.tsv`
-- Outputs to: `../../../output_to_input/BLOCK_secretome_evidence_table/` (symlinks from `../OUTPUT_pipeline/`)
+- Outputs to: `../../../output_to_input/STEP_1-build_evidence_table/` (symlinks from `../OUTPUT_pipeline/`)
 - 3 scripts (validate / build_evidence_table / `write_run_log` per §45)
 - Conda env: `aiG-secretome-build_evidence_table`
 
@@ -24,22 +24,32 @@ Human:   Eric Edsinger
 | # | Script | Function |
 |---|--------|----------|
 | 001 | `validate_proteome_manifest.py` | Validate manifest; fail-fast on missing proteomes |
-| 002 | `build_evidence_table.py` | Pivot long-format DB → wide per-protein evidence table per species (STUB — pending finalization) |
+| 002 | `build_evidence_table.py` | Pivot long-format DB → wide per-protein evidence table per species |
 | 003 | `write_run_log.py` | Timestamped run log per §45 |
 
 ## Status
 
-Script 002 (`build_evidence_table.py`) is the substantive piece and is
-**not yet finalized** — it was designed in 2026 May but column shape
-depends on the upstream tool BLOCK output formats being settled. Check
-the script header or the main.nf comment for current status.
+Operational. Script 002 (`build_evidence_table.py`) is the substantive piece
+and is fully implemented: it pivots the long-format standardized annotation
+database into one wide per-protein evidence table per species (default 6-tool
+"Leonid simplified" column set), augmented with the full DeepLoc probability
+vector. One evidence table per species is written to `2-output/` and exposed
+via `output_to_input/STEP_1-build_evidence_table/` for STEP_2.
+
+## Path handling
+
+Upstream input paths in `START_HERE-user_config.yaml`
+(`annotation_database_dir`, `deeploc_csv_dir`) are **relative** to the workflow
+directory and consumed via `annotations_hmms/output_to_input/`. `main.nf`
+passes an absolute `--workflow-root ${projectDir}/..` to script 002, which
+resolves the relative paths against it so they survive NextFlow's `work/`
+execution dirs.
 
 ## execution_mode
 
 Set in `START_HERE-user_config.yaml`:
 - `local` — sequential on the head node
 - `slurm` — single SLURM allocation (recommended)
-- `slurm_burst` — per-species fan-out to burst QOS
 
 ## See Also
 

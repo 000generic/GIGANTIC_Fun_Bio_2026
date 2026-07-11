@@ -2,7 +2,7 @@
 
 <!-- ============================================================================
 AI:      Claude Code | Opus 4.7 | 2026 May 21 (initial; Moroz spec scoping)
-AI:      Claude Code | Opus 4.7 | 2026 May 23 (BLOCK_secretome_evidence_table scaffold)
+AI:      Claude Code | Opus 4.7 | 2026 May 23 (STEP_1-build_evidence_table scaffold)
 AI:      Claude Code | Opus 4.7 | 2026 May 25 (STEP_2-filter_secretome scripts)
 AI:      Claude Code | Opus 4.7 (1M context) | 2026 May 26 (detailed eval pass)
 Human:   Eric Edsinger
@@ -12,10 +12,10 @@ Human:   Eric Edsinger
 
 - Parent (project): [`../../AI_GUIDE.md`](../../AI_GUIDE.md) — GIGANTIC overview + general patterns
 - Subproject README: [`README.md`](README.md)
-- Three units (mixed BLOCK + STEP — see "Naming inconsistency" note below):
-  - [`BLOCK_secretome_evidence_table/`](BLOCK_secretome_evidence_table/) — pivots annotation DB to per-protein evidence tables (logically STEP_1)
-  - [`STEP_2-filter_secretome/`](STEP_2-filter_secretome/) — applies filters to evidence tables → per-species secretome
-  - [`BLOCK_secretome_per_moroz_17may2026/`](BLOCK_secretome_per_moroz_17may2026/) — Moroz lab spec implementation (scaffold only, awaiting upstream data)
+- Three units (two sequential STEPs + one independent BLOCK):
+  - [`STEP_1-build_evidence_table/`](STEP_1-build_evidence_table/) — pivots annotation DB to per-protein evidence tables (feeds STEP_2)
+  - [`STEP_2-filter_secretome/`](STEP_2-filter_secretome/) — applies filters to STEP_1 evidence tables → per-species secretome
+  - [`BLOCK_secretome_per_moroz_17may2026/`](BLOCK_secretome_per_moroz_17may2026/) — Moroz lab spec implementation (independent BLOCK; scaffold only, awaiting upstream data)
 - Reads FROM:
   - `../annotations_hmms/output_to_input/BLOCK_build_annotation_database/` — long-format standardized annotation DB
   - `../annotations_hmms/output_to_input/BLOCK_signalp/` — SignalP6 predictions
@@ -23,25 +23,25 @@ Human:   Eric Edsinger
   - `../annotations_hmms/output_to_input/BLOCK_interproscan_parsed/pfam/` — Pfam annotations
   - `../genomesDB/output_to_input/STEP_4-create_final_species_set/speciesN_gigantic_T1_proteomes/` — proteomes
 - Outputs TO (`output_to_input/`):
-  - `BLOCK_secretome_evidence_table/` — per-species evidence tables (one wide TSV per species)
+  - `STEP_1-build_evidence_table/` — per-species evidence tables (one wide TSV per species)
   - `STEP_2-filter_secretome/` — per-species filtered secretome tables
   - `BLOCK_secretome_per_moroz_17may2026/` — (future, when scripted)
-- Downstream consumers: comparative analyses, `upload_to_server/` (later)
+- Downstream consumers: comparative analyses, `upload_to_server/` (shared-helper publish; see Server Hosting)
   - **integrator** — `../integrator/BLOCK_orthogroups_ocl_X_features/` reads
     `output_to_input/STEP_2-filter_secretome/` (filtered-secretome membership →
-    `Is_Secreted`) and `output_to_input/BLOCK_secretome_evidence_table/`
+    `Is_Secreted`) and `output_to_input/STEP_1-build_evidence_table/`
     (SignalP / DeepLoc / Pfam evidence columns for the gene-level drill-down),
     joining onto OCL orthogroups by full GIGANTIC sequence ID. See
     `../integrator/AI_GUIDE.md`.
 
-## Naming inconsistency (flagged for future cleanup)
+## Unit naming (STEP vs BLOCK)
 
-`BLOCK_secretome_evidence_table/` is logically STEP_1 (its output feeds
-`STEP_2-filter_secretome/`), but is named as a BLOCK. Per §41 +
-memory `feedback_block_vs_step_semantics`, BLOCKs are
-independently-runnable while STEPs are sequentially-dependent — so the
-correct name would be `STEP_1-build_evidence_table/`. Renaming is out
-of scope for this docs pass; the dir name is preserved as-is.
+`STEP_1-build_evidence_table/` and `STEP_2-filter_secretome/` are a
+sequential pair: STEP_1's output is the required input to STEP_2, so both
+carry `STEP_` prefixes per §41 + memory `feedback_block_vs_step_semantics`
+(STEPs are sequentially-dependent; BLOCKs are independently-runnable). The
+evidence-table unit was originally scaffolded as `BLOCK_secretome_evidence_table`
+and has since been renamed to `STEP_1-build_evidence_table` to reflect this.
 
 `BLOCK_secretome_per_moroz_17may2026/` is a separate (orthogonal)
 experimental implementation of the Moroz spec — it's a true BLOCK
@@ -51,7 +51,7 @@ experimental implementation of the Moroz spec — it's a true BLOCK
 
 **For AI Assistants**: Read the project-level guide (`../../AI_GUIDE.md`) first for GIGANTIC overview, directory structure, and general patterns. This guide covers the `secretome` subproject specifically.
 
-> **Build location note** (May 2026): This subproject was developed initially at `~/secretome/` because `/blue/` was out of space. Contents are now in this canonical location (`gigantic_project-COPYME/subprojects/secretome/`); absolute paths in `START_HERE-user_config.yaml` may still reference the old location and should be swapped to relative paths as part of next refactor.
+> **Build location note** (May 2026): This subproject was developed initially at `~/secretome/` because `/blue/` was out of space. Contents are now in this canonical location (`gigantic_project-COPYME/subprojects/secretome/`). As of the July 2026 modernization, all `START_HERE-user_config.yaml` files use **relative** upstream paths (resolved against the workflow root via `--workflow-root`, matching `resolve_groups`); the old absolute paths have been removed.
 
 ## Quick Reference
 
@@ -60,10 +60,10 @@ experimental implementation of the Moroz spec — it's a true BLOCK
 | GIGANTIC overview, directory structure | `../../AI_GUIDE.md` |
 | Subproject overview | `README.md` |
 | Subproject concepts (this file) | This file |
-| Build evidence table (logically STEP_1) | `BLOCK_secretome_evidence_table/AI_GUIDE.md` |
+| Build evidence table (STEP_1) | `STEP_1-build_evidence_table/AI_GUIDE.md` |
 | Filter to secretome (STEP_2) | `STEP_2-filter_secretome/AI_GUIDE.md` |
 | Moroz 2026-05-17 spec implementation | `BLOCK_secretome_per_moroz_17may2026/AI_GUIDE.md` |
-| Running build_evidence_table workflow | `BLOCK_secretome_evidence_table/workflow-COPYME-build_evidence_table/ai/AI_GUIDE.md` |
+| Running build_evidence_table workflow | `STEP_1-build_evidence_table/workflow-COPYME-build_evidence_table/ai/AI_GUIDE.md` |
 | Running filter_secretome workflow | `STEP_2-filter_secretome/workflow-COPYME-filter_secretome/ai/AI_GUIDE.md` |
 | Running per_moroz workflow (scaffold only) | `BLOCK_secretome_per_moroz_17may2026/workflow-COPYME-secretome_per_moroz_17may2026/ai/AI_GUIDE.md` |
 
@@ -118,7 +118,7 @@ secretome/
 ├── README.md
 ├── output_to_input/                                          # symlink hub for downstream subprojects
 │   └── BLOCK_secretome_per_moroz_17may2026/                  # populated by RUN-workflow.sh
-├── upload_to_server/                                         # curated outputs for the GIGANTIC server (later)
+├── upload_to_server/                                         # curated outputs for the GIGANTIC server (shared-helper nested tree)
 └── BLOCK_secretome_per_moroz_17may2026/
     └── workflow-COPYME-secretome_per_moroz_17may2026/
         ├── START_HERE-user_config.yaml                       # USER edits this before running
@@ -161,7 +161,28 @@ The workflow code reads these from YAML — no `main.nf` edits needed when switc
 
 ## Server Hosting
 
-To be added after first run review, matching the canonical pattern (`upload_to_server/upload_manifest.tsv` + subproject-root `RUN-update_upload_to_server.sh`).
+Server publishing uses the **shared-helper pattern** (matches `resolve_groups`
+and `homolog_counts`):
+
+- Each workflow carries its own `upload_manifest.tsv` (in the
+  `workflow-COPYME-*` template; it travels into every `workflow-RUN_*` copy).
+  - STEP_1 publishes the per-species evidence tables + validated manifest.
+  - STEP_2 publishes the per-species secretome tables + validated filter
+    manifest (the collaborator-facing deliverable).
+- The subproject-root `RUN-update_upload_to_server.sh` is a thin wrapper around
+  the shared helper `../../server/ai/update_upload_to_server.py`. Run it from
+  the subproject root:
+
+  ```bash
+  bash RUN-update_upload_to_server.sh            # publish
+  bash RUN-update_upload_to_server.sh --dry-run  # preview
+  ```
+
+- The helper discovers every `workflow-RUN_*/upload_manifest.tsv`, publishes
+  **only the most recent RUN per step**, and materializes a nested tree:
+  `upload_to_server/<STEP>/workflow-RUN_*/N-output/<file>` (superseded runs and
+  stale symlinks are pruned automatically). Do NOT hand-edit
+  `upload_to_server/` — it is rebuilt from the manifests.
 
 ## Where to Look Next
 

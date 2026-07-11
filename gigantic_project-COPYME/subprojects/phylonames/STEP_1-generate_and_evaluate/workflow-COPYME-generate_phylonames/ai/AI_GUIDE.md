@@ -303,11 +303,18 @@ bash RUN-workflow.sh
 
 | Script | Does | Creates |
 |--------|------|---------|
-| 001 | Downloads NCBI taxonomy | `1-output/database-ncbi_taxonomy_*` |
+| 001 | Obtains NCBI taxonomy snapshot per `ncbi_taxonomy.source_mode` (`download_latest` / `supply_path` / `download_version`) | `database-ncbi_taxonomy_latest` (+ snapshot dir) |
 | 002 | Generates ALL phylonames | `2-output/phylonames`, `2-output/phylonames_taxonid` |
 | 003 | Creates project mapping | `3-output/[project]_map-*.tsv` |
 | 004 | Generates taxonomy summary | `4-output/[project]_taxonomy_summary.md/.html` |
 | 005 | Writes run log | Research notebook log entry |
+
+**Reproducibility note (script 001):** GIGANTIC numbered clades (`Kingdom6555`,
+etc.) depend on the exact NCBI snapshot. For reproducible re-runs, set
+`ncbi_taxonomy.source_mode: "supply_path"` (reuse a fixed snapshot dir
+containing `rankedlineage.dmp`) or `"download_version"` (a dated archive) in
+`START_HERE-user_config.yaml`. The default `download_latest` always fetches the
+current release, which moves over time.
 
 ---
 
@@ -317,7 +324,11 @@ bash RUN-workflow.sh
 cd workflow-COPYME-generate_phylonames
 
 # Run scripts individually
-bash ai/scripts/001_ai-bash-download_ncbi_taxonomy.sh
+# Script 001 now takes flags (normally supplied by main.nf from the yaml params):
+bash ai/scripts/001_ai-bash-download_ncbi_taxonomy.sh \
+    --source-mode download_latest \
+    --workflow-dir .
+# (or: --source-mode supply_path --taxonomy-path /path/to/snapshot --workflow-dir .)
 python3 ai/scripts/002_ai-python-generate_phylonames.py
 python3 ai/scripts/003_ai-python-create_species_mapping.py \
     --species-list INPUT_user/species_list.txt \

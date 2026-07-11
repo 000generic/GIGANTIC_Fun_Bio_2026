@@ -9,7 +9,7 @@
 # Human: Eric Edsinger
 # ===========================================================================
 #
-# Per-BLOCK conda env scoped to secretome/BLOCK_secretome_evidence_table.
+# Per-BLOCK conda env scoped to secretome/STEP_1-build_evidence_table.
 # Lightweight: pure Python TSV pivot over standardized annotation database.
 #
 # ACTIVATION:

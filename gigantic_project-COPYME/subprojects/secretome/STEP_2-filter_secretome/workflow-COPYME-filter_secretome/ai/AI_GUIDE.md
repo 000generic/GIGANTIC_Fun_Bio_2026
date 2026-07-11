@@ -13,8 +13,8 @@ Human:   Eric Edsinger
 - Parent (project): [`../../../../AI_GUIDE.md`](../../../../AI_GUIDE.md)
 - Workflow README: [`../README.md`](../README.md)
 - Reads from:
-  - `../../../output_to_input/BLOCK_secretome_evidence_table/` (upstream STEP_1)
-  - `../../../../orthogroups/output_to_input/BLOCK_orthohmm/`
+  - `../../../output_to_input/STEP_1-build_evidence_table/` (upstream STEP_1)
+  - `../../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/` (canonical species70; 202,994 orthogroups / 1,375,926 members)
   - `../../../../one_direction_homologs/output_to_input/BLOCK_diamond_ncbi_nr/ncbi_nr_top_hits/`
   - `../INPUT_user/<filter_manifest>.json`
 - Outputs to: `../../../output_to_input/STEP_2-filter_secretome/`
@@ -88,4 +88,4 @@ The output dirs are uniquely identified by the RUN_N name; symlinks into
 - [`../README.md`](../README.md) — workflow usage
 - [`../../AI_GUIDE.md`](../../AI_GUIDE.md) — STEP concepts
 - [`../../../AI_GUIDE.md`](../../../AI_GUIDE.md) — subproject overview + Moroz spec
-- `../../../BLOCK_secretome_evidence_table/AI_GUIDE.md` — upstream STEP_1
+- `../../../STEP_1-build_evidence_table/AI_GUIDE.md` — upstream STEP_1

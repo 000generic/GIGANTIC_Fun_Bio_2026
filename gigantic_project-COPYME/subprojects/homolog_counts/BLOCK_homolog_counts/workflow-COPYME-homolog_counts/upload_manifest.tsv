@@ -1,0 +1,40 @@
+# GIGANTIC upload_manifest.tsv — homolog_counts / BLOCK_homolog_counts
+# ============================================================================
+# Publishes the per-species70 homolog count tables produced by this workflow:
+# one wide TSV per source (orthogroups, HGNC gene groups, curated gene
+# families), each keyed on a feature ID with 3 summary columns + 70 species
+# columns (alphabetical phyloname order) + phylum/human identifier lists.
+# Also publishes the canonical species70 column order, the run log, and the
+# short-species-header browsing variants (script 006).
+#
+# NOTE (counts caveat): gene-group / gene-family counts are ADDITIVE across
+# RGS reference sequences and >g_ BLAST-discovered homologs (pending the
+# upstream AGS pipeline dedup fix). Orthogroup counts are from the canonical
+# BLOCK_orthohmm_GIGANTIC run (202,994 orthogroups / 1,375,926 members).
+#
+# Mechanics: source_path is relative to the workflow-RUN_* directory holding
+# this manifest. The shared helper (../../server/ai/update_upload_to_server.py,
+# invoked by the subproject-root RUN-update_upload_to_server.sh) publishes the
+# newest RUN per block into upload_to_server/BLOCK_homolog_counts/workflow-RUN_*/.
+#
+# This is a COPYME template; it travels with the workflow into each
+# workflow-RUN_* dir, where the helper picks it up.
+# ============================================================================
+
+source_path	include	dest_name	display_label	file_category	description	order	dir_label
+#
+# ----- Canonical species70 column order (script 001) -----
+OUTPUT_pipeline/1-output/1_ai-species70_alphabetical_phylonames.tsv	yes		Species70 alphabetical phyloname order	data	The canonical species70 column order (1-based index, phyloname, genus_species, phyloname with NCBI taxon id) sorted alphabetically by phyloname. Every count table below uses this exact species column order.	10	species order
+#
+# ----- Homolog count tables (scripts 002-004) -----
+OUTPUT_pipeline/2-output/2_ai-counts-orthogroups_orthohmm.tsv	yes		Orthogroup counts per species	data	One row per orthogroup from the canonical BLOCK_orthohmm_GIGANTIC run: total gene count, total species count, then per-species gene counts across the 70 species, plus human gene name and per-phylum sequence-id lists.	20	homolog counts
+OUTPUT_pipeline/3-output/3_ai-counts-trees_gene_groups.tsv	yes		HGNC gene group homolog counts per species	data	One row per HGNC gene group from trees_gene_groups: total and per-species homolog counts across the 70 species. ADDITIVE over RGS references and >g_ discovered homologs (see counts caveat).	22	homolog counts
+OUTPUT_pipeline/4-output/4_ai-counts-trees_gene_families.tsv	yes		Curated gene family homolog counts per species	data	One row per curated gene family from trees_gene_families: total and per-species homolog counts across the 70 species. ADDITIVE over RGS references and >g_ discovered homologs (see counts caveat).	24	homolog counts
+#
+# ----- Run log (script 005) -----
+OUTPUT_pipeline/5-output/5_ai-run_log.md	yes		Run log	documentation	Timestamped record of this workflow run (inputs, versions, status) for provenance.	30	run log
+#
+# ----- Short-species-header browsing variants (script 006) -----
+OUTPUT_pipeline/6-output/6_ai-counts-orthogroups_orthohmm-short_species_headers.tsv	yes		Orthogroup counts (short species headers)	data	Same table as the orthogroup counts, but the 70 phyloname columns are replaced with short human-readable species labels for easier browsing.	40	short-header variants
+OUTPUT_pipeline/7-output/7_ai-counts-trees_gene_groups-short_species_headers.tsv	yes		HGNC gene group counts (short species headers)	data	Same table as the HGNC gene group counts, with short human-readable species labels replacing the phyloname columns.	42	short-header variants
+OUTPUT_pipeline/8-output/8_ai-counts-trees_gene_families-short_species_headers.tsv	yes		Curated gene family counts (short species headers)	data	Same table as the curated gene family counts, with short human-readable species labels replacing the phyloname columns.	44	short-header variants

@@ -51,7 +51,7 @@ inputs:
 
   # secretome (evidence): per-species wide evidence tables (SignalP / DeepLoc /
   # Pfam columns) used to attach evidence columns to the gene-level drill-down.
-  secretome_evidence_dir: "../../../secretome/output_to_input/BLOCK_secretome_evidence_table"
+  secretome_evidence_dir: "../../../secretome/output_to_input/STEP_1-build_evidence_table"
 
 # Output configuration
 output:

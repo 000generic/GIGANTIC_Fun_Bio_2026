@@ -113,9 +113,29 @@ GENUS_SPECIES___PHYLUM_OF_INTEREST = {
 PHYLUM_LIST_ORDER = [ 'Ctenophora', 'Porifera', 'Placozoa', 'Cnidaria' ]
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config paths are relative to the workflow directory (where
+    START_HERE-user_config.yaml lives). NextFlow runs each task in a work/
+    subdir, so a bare relative path would resolve against the wrong CWD.
+    Anchor relative paths against workflow_root (an absolute path passed by
+    main.nf as ${projectDir}/..); leave already-absolute paths untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description = 'Count curated gene family homologs per species from trees_gene_families output'
+    )
+    parser.add_argument(
+        '--workflow-root',
+        required = True,
+        help = 'Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --gene-families-dir is resolved against this'
     )
     parser.add_argument(
         '--species-order',
@@ -273,7 +293,7 @@ def main():
     # Enumerate gene family directories
     # ========================================================================
 
-    input_gene_families_dir = Path( args.gene_families_dir )
+    input_gene_families_dir = resolve_against_workflow_root( args.gene_families_dir, args.workflow_root )
 
     if not input_gene_families_dir.is_dir():
         logger.error( f'CRITICAL ERROR: gene_families_dir is not a directory: {input_gene_families_dir}' )

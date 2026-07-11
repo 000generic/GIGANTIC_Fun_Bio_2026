@@ -2,16 +2,32 @@
 
 Per-species70 homolog count tables, one wide TSV per upstream source.
 
+## Layout
+
+This directory is built automatically by the subproject-root
+`RUN-update_upload_to_server.sh`, which calls the shared helper
+`server/ai/update_upload_to_server.py`. It reads the per-workflow
+`upload_manifest.tsv` from the most recent `workflow-RUN_*` and publishes the
+files (as symlinks) into a nested tree that mirrors the source:
+
+```
+upload_to_server/BLOCK_homolog_counts/workflow-RUN_<K>-homolog_counts/<N>-output/<file>
+```
+
+Only the newest RUN per block is published; superseded runs are pruned. Do not
+hand-edit symlinks here — rerun `RUN-update_upload_to_server.sh` instead. The
+file inventory and per-file descriptions below are the published deliverables.
+
 ## Files
 
 | File | Rows | Description |
 |---|---|---|
 | `1_ai-species70_alphabetical_phylonames.tsv` | 70 | Canonical alphabetical phyloname column order shared by all count tables below |
-| `2_ai-counts-orthogroups_orthohmm.tsv` | 170,027 | Orthogroup counts per species, from `orthogroups/BLOCK_orthohmm` (`gene_count_gigantic_ids.tsv` re-keyed and summarized) |
+| `2_ai-counts-orthogroups_orthohmm.tsv` | 202,994 | Orthogroup counts per species, from the canonical `orthogroups/BLOCK_orthohmm_GIGANTIC` (`gene_count_gigantic_ids.tsv` re-keyed and summarized) |
 | `3_ai-counts-trees_gene_groups.tsv` | 1,974 | HGNC gene group homolog counts per species, from `trees_gene_groups/output_to_input/gene_groups-hugo_hgnc/STEP_1-homolog_discovery/`. **Additive** counting across RGS reference sequences and `>g_` BLAST-discovered homologs. |
 | `4_ai-counts-trees_gene_families.tsv` | 76 | Curated gene family homolog counts per species, from `trees_gene_families/output_to_input/<family>/STEP_1-homolog_discovery/`. **Additive** counting across RGS and `>g_`. |
 | `5_ai-run_log.md` | — | Timestamped record of the workflow run that produced these tables |
-| `6_ai-counts-orthogroups_orthohmm-short_species_headers.tsv` | 170,027 | Same data as file 2, with the 70 species column headers shortened to `<Phylum-or-clade> <Genus> <species>` |
+| `6_ai-counts-orthogroups_orthohmm-short_species_headers.tsv` | 202,994 | Same data as file 2, with the 70 species column headers shortened to `<Phylum-or-clade> <Genus> <species>` |
 | `7_ai-counts-trees_gene_groups-short_species_headers.tsv` | 1,974 | Same data as file 3, with short species column headers |
 | `8_ai-counts-trees_gene_families-short_species_headers.tsv` | 76 | Same data as file 4, with short species column headers |
 

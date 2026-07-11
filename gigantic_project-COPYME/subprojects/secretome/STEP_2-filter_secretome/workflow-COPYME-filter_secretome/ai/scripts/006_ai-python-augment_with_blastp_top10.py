@@ -26,10 +26,27 @@ import sys
 from pathlib import Path
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config-derived paths (BLASTP top-hits dir) are relative to the workflow
+    directory. NextFlow runs each task in a work/ subdir, so a bare relative
+    path would resolve against the wrong CWD. Anchor relative paths against
+    workflow_root (absolute, passed by main.nf as ${projectDir}/..); leave
+    already-absolute paths and staged NextFlow inputs untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description = "Append BLASTP top-10 hit IDs + e-values + headers as 3 new columns."
     )
+    parser.add_argument( "--workflow-root", required = True,
+                         help = "Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --blastp-top-hits-tsv is resolved against this." )
     parser.add_argument( "--input-tsv", required = True,
                          help = "Per-species TSV input ( previous augment stage )." )
     parser.add_argument( "--blastp-top-hits-tsv", required = True,
@@ -81,6 +98,10 @@ def main():
     output_dir = Path( args.output_dir ).resolve()
     output_dir.mkdir( parents = True, exist_ok = True )
 
+    # Resolve config-derived BLASTP top-hits path against the workflow root so
+    # the relative config path survives NextFlow's work/ execution dirs.
+    input_blastp_top_hits_tsv = resolve_against_workflow_root( args.blastp_top_hits_tsv, args.workflow_root )
+
     log_path = output_dir / f"{args.phyloname}_{args.run_label}_log-augment_blastp.log"
     logging.basicConfig(
         level = logging.INFO,
@@ -94,10 +115,11 @@ def main():
     logger.info( "=" * 70 )
     logger.info( f"Run label:       {args.run_label}" )
     logger.info( f"Phyloname:       {args.phyloname}" )
+    logger.info( f"Workflow root:   {args.workflow_root}" )
     logger.info( f"Input TSV:       {args.input_tsv}" )
-    logger.info( f"top_hits TSV:    {args.blastp_top_hits_tsv}" )
+    logger.info( f"top_hits TSV:    {input_blastp_top_hits_tsv}" )
 
-    blastp_lookup = load_blastp_top_hits( Path( args.blastp_top_hits_tsv ), logger )
+    blastp_lookup = load_blastp_top_hits( input_blastp_top_hits_tsv, logger )
 
     out_path = output_dir / f"{args.phyloname}_{args.run_label}_blastp_augmented.tsv"
 

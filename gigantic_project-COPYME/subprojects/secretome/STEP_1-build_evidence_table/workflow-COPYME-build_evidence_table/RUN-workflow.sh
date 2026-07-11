@@ -187,7 +187,7 @@ fi
 # ============================================================================
 # Real files live in OUTPUT_pipeline/N-output/ (created by NextFlow above).
 # Symlinks are created in ONE location at the subproject root:
-#   ../../output_to_input/BLOCK_secretome_evidence_table/
+#   ../../output_to_input/STEP_1-build_evidence_table/
 #
 # Symlink targets are RELATIVE paths from the symlink location to
 # the real files in OUTPUT_pipeline/.
@@ -199,7 +199,7 @@ echo "Creating symlinks for downstream subprojects..."
 WORKFLOW_DIR_NAME="$(basename "${SCRIPT_DIR}")"
 
 # --- Subproject-root output_to_input (single canonical location) ---
-SUBPROJECT_SHARED_DIR="../../output_to_input/BLOCK_secretome_evidence_table"
+SUBPROJECT_SHARED_DIR="../../output_to_input/STEP_1-build_evidence_table"
 mkdir -p "${SUBPROJECT_SHARED_DIR}"
 find "${SUBPROJECT_SHARED_DIR}" -type l -delete 2>/dev/null || true
 
@@ -211,12 +211,12 @@ SYMLINK_COUNT=0
 for result_file in ${RESULT_DIR}/*_evidence_table.tsv; do
     if [ -f "$result_file" ]; then
         filename="$(basename "$result_file")"
-        ln -sf "../../BLOCK_secretome_evidence_table/${WORKFLOW_DIR_NAME}/${result_file}" "${SUBPROJECT_SHARED_DIR}/${filename}"
+        ln -sf "../../STEP_1-build_evidence_table/${WORKFLOW_DIR_NAME}/${result_file}" "${SUBPROJECT_SHARED_DIR}/${filename}"
         SYMLINK_COUNT=$((SYMLINK_COUNT + 1))
     fi
 done
 
-echo "  Created ${SYMLINK_COUNT} symlinks in output_to_input/BLOCK_secretome_evidence_table/"
+echo "  Created ${SYMLINK_COUNT} symlinks in output_to_input/STEP_1-build_evidence_table/"
 
 if [ $SYMLINK_COUNT -eq 0 ]; then
     echo "  WARNING: No evidence_table TSVs found in ${RESULT_DIR}/"
@@ -231,7 +231,7 @@ echo "Research outputs (real files):"
 echo "  OUTPUT_pipeline/"
 echo ""
 echo "Downstream symlinks:"
-echo "  output_to_input/BLOCK_secretome_evidence_table/  (subproject root)"
+echo "  output_to_input/STEP_1-build_evidence_table/  (subproject root)"
 echo "========================================================================"
 echo "Completed: $(date)"
 

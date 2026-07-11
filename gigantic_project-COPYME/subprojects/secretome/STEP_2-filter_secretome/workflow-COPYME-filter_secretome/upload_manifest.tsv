@@ -1,0 +1,30 @@
+# GIGANTIC upload_manifest.tsv — secretome / STEP_2-filter_secretome
+# ============================================================================
+# Publishes the per-species SECRETOME tables produced by this workflow: the
+# final collaborator-facing deliverable of the secretome subproject. Each file
+# is one per-species subset of proteins that pass the user-authored secretome
+# filter manifest, after the evidence table has been augmented with derived
+# columns (cysteine count, Pfam max-hits-per-accession), orthogroup membership
+# + model-species orthologs (from the canonical BLOCK_orthohmm_GIGANTIC run:
+# 202,994 orthogroups / 1,375,926 members), and BLASTP top-10 NCBI nr hits.
+#
+# Filenames carry the run label: <phyloname>_secretome_NNN[_<name>].tsv
+# (e.g. Homo_sapiens_secretome_001_moroz_strict.tsv).
+#
+# Mechanics: source_path is relative to the workflow-RUN_* directory holding
+# this manifest. The shared helper (../../server/ai/update_upload_to_server.py,
+# invoked by the subproject-root RUN-update_upload_to_server.sh) publishes the
+# newest RUN per step into
+# upload_to_server/STEP_2-filter_secretome/workflow-RUN_*/.
+#
+# This is a COPYME template; it travels with the workflow into each
+# workflow-RUN_* dir, where the helper picks it up.
+# ============================================================================
+
+source_path	include	dest_name	display_label	file_category	description	order	dir_label
+#
+# ----- Validated filter manifest snapshot (script 001) -----
+OUTPUT_pipeline/1-output/*_validated_manifest.json	yes		Validated secretome filter manifest	documentation	Snapshot of the user-authored secretome filter manifest applied in this run (the exact filter clauses that defined "secreted" for every species).	10	filter manifest
+#
+# ----- Per-species secretome tables (script 002; one per species, 70 total) -----
+OUTPUT_pipeline/2-output/*.tsv	yes		Per-species secretome	data	Proteins from one species that pass the secretome filter manifest, with full augmented evidence (annotations, derived columns, orthogroup membership + model-species orthologs, BLASTP top-10 NCBI nr hits).	20	secretome tables

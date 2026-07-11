@@ -1,0 +1,35 @@
+# GIGANTIC integrator - BLOCK_orthogroups_X_leonid_08july2026 environment
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 08
+# Human: Eric Edsinger
+# ====================================================================
+#
+# Per-BLOCK conda env scoped to BLOCK_orthogroups_X_leonid_08july2026.
+# Created on-demand by RUN-workflow.sh via mamba (conda fallback).
+#
+# Pure-Python integration BLOCK (no external aligners/search tools) — it joins
+# orthogroup membership with annogroup feature membership and the species-tree
+# clade species sets. Dependencies are intentionally minimal.
+#
+# INSTALLATION:
+#   The env is created automatically on first run via RUN-workflow.sh.
+#   Manual creation:
+#     mamba env create -f ai/conda_environment.yml
+#
+# ACTIVATION:
+#   module load conda  # (HiPerGator/HPC only)
+#   conda activate aiG-integrator-orthogroups_X_leonid_08july2026
+
+name: aiG-integrator-orthogroups_X_leonid_08july2026
+
+channels:
+  - conda-forge
+  - bioconda
+  - defaults
+
+dependencies:
+  # Core requirements
+  - python>=3.11
+  - nextflow>=23.0,<26.0  # PIN: NF 26.x strict-DSL retroactively breaks these workflows
+
+  # Configuration parsing
+  - pyyaml

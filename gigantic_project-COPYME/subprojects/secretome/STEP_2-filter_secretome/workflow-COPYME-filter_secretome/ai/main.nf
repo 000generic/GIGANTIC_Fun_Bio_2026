@@ -64,6 +64,7 @@ process augment_with_derived_columns {
     script:
     """
     python3 ${scripts_dir}/003_ai-python-augment_with_derived_columns.py \
+        --workflow-root ${projectDir}/.. \
         --filtered-tsv ${evidence_table} \
         --proteome-fasta ${params.proteome_dir}/${phyloname}-T1-proteome.aa \
         --pfam-long-format-tsv ${params.annotation_database_dir}/database_pfam/gigantic_annotations-database_pfam-${phyloname}.tsv \
@@ -87,6 +88,7 @@ process augment_with_orthogroups {
     script:
     """
     python3 ${scripts_dir}/005_ai-python-augment_with_orthogroups.py \
+        --workflow-root ${projectDir}/.. \
         --input-tsv ${input_tsv} \
         --orthogroups-tsv ${params.orthogroups_tsv} \
         --run-label ${params.run_label} \
@@ -108,6 +110,7 @@ process augment_with_blastp_top10 {
     script:
     """
     python3 ${scripts_dir}/006_ai-python-augment_with_blastp_top10.py \
+        --workflow-root ${projectDir}/.. \
         --input-tsv ${input_tsv} \
         --blastp-top-hits-tsv ${params.blastp_top_hits_dir}/${phyloname}_top_hits.tsv \
         --run-label ${params.run_label} \

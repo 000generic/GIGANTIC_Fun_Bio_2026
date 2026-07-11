@@ -324,7 +324,10 @@ The unified driver runs locally or self-submits to SLURM based on
 also set `slurm.account` and `slurm.qos` in that YAML.
 
 STEP_1 will:
-1. Download NCBI taxonomy database (~2GB, skipped if already exists)
+1. Obtain the NCBI taxonomy snapshot per `ncbi_taxonomy.source_mode`
+   (default `download_latest` downloads ~2GB; `supply_path` reuses an
+   existing snapshot with no download; `download_version` fetches a dated
+   archive — see [NCBI Taxonomy Snapshot Source](#ncbi-taxonomy-snapshot-source-and-versioning))
 2. Generate phylonames for all NCBI species (~5-10 minutes)
 3. Create your project-specific mapping file
 4. Generate a taxonomy summary report
@@ -528,20 +531,33 @@ The `maps/` symlink points to either STEP_1 or STEP_2 output depending on which 
 
 ---
 
-## NCBI Taxonomy Versioning
+## NCBI Taxonomy Snapshot Source (and Versioning)
 
-Each download creates a versioned database directory:
-```
-database-ncbi_taxonomy_YYYYMMDD_HHMMSS/
-```
+GIGANTIC fills gaps in NCBI taxonomy with **numbered unknown clades**
+(e.g., `Kingdom6555`). Those numbers — and therefore the phylonames assigned
+to your species — depend on the **exact NCBI taxonomy snapshot** used.
+**Re-running against a different snapshot can change assigned phylonames**,
+which would silently break every downstream subproject that already keyed on
+the old phyloname. Choosing and pinning the snapshot is therefore a
+reproducibility decision, controlled by `ncbi_taxonomy.source_mode` in STEP_1's
+`START_HERE-user_config.yaml`:
 
-A symlink `database-ncbi_taxonomy_latest` always points to the most recent download.
+| `source_mode` | What it does | When to use |
+|---|---|---|
+| `download_latest` *(default)* | Downloads the current `new_taxdump` release from NCBI | First run of a new project |
+| `supply_path` | Reuses an existing snapshot directory (containing `rankedlineage.dmp`) via `taxonomy_path` — **no download** | Reproducible re-runs; pin to a fixed snapshot |
+| `download_version` | Downloads a specific dated archive (`new_taxdump_YYYY-MM-DD.zip`) via `download_version` | Reproducible without keeping a local copy |
 
-**Why version?**
-- NCBI regularly adds new species and corrects taxonomy
-- Versioned directories enable reproducibility
-- Multiple versions can coexist for comparison
-- You always know which taxonomy version generated your results
+Downloaded snapshots are stored in a versioned directory
+(`database-ncbi_taxonomy_YYYYMMDD_HHMMSS/`), and a `database-ncbi_taxonomy_latest`
+symlink always points at the snapshot in use (downloaded or supplied).
+
+**Why pin a snapshot?**
+- NCBI regularly adds species and corrects taxonomy, so "latest" moves over time
+- Pinning (`supply_path` / `download_version`) makes re-runs reproduce the same
+  phylonames and numbered clades exactly
+- You always know which taxonomy version generated your results (recorded in the
+  snapshot's `download_metadata.txt`)
 
 ---
 

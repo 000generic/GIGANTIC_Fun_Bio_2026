@@ -28,9 +28,29 @@ import sys
 from pathlib import Path
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config paths are relative to the workflow directory (where
+    START_HERE-user_config.yaml lives). NextFlow runs each task in a work/
+    subdir, so a bare relative path would resolve against the wrong CWD.
+    Anchor relative paths against workflow_root (an absolute path passed by
+    main.nf as ${projectDir}/..); leave already-absolute paths untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description = 'Validate species70 manifest and emit canonical phyloname column order'
+    )
+    parser.add_argument(
+        '--workflow-root',
+        required = True,
+        help = 'Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --phyloname-map is resolved against this'
     )
     parser.add_argument(
         '--phyloname-map',
@@ -83,7 +103,7 @@ def main():
     # Validate input file exists
     # ========================================================================
 
-    input_phyloname_map_path = Path( args.phyloname_map )
+    input_phyloname_map_path = resolve_against_workflow_root( args.phyloname_map, args.workflow_root )
     if not input_phyloname_map_path.exists():
         logger.error( 'CRITICAL ERROR: phyloname map file not found' )
         logger.error( f'Expected at: {input_phyloname_map_path}' )

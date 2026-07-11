@@ -42,14 +42,31 @@ MODEL_SPECIES_PHYLONAME_SUFFIXES = [
 ]
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config-derived paths (orthogroups TSV) are relative to the workflow
+    directory. NextFlow runs each task in a work/ subdir, so a bare relative
+    path would resolve against the wrong CWD. Anchor relative paths against
+    workflow_root (absolute, passed by main.nf as ${projectDir}/..); leave
+    already-absolute paths and staged NextFlow inputs untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description = "Append orthogroup membership + 4 model-species ortholog columns to per-species TSV."
     )
+    parser.add_argument( "--workflow-root", required = True,
+                         help = "Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --orthogroups-tsv is resolved against this." )
     parser.add_argument( "--input-tsv", required = True,
                          help = "Per-species TSV input ( previous augment stage output )." )
     parser.add_argument( "--orthogroups-tsv", required = True,
-                         help = "orthogroups_gigantic_ids.tsv from orthogroups/output_to_input/BLOCK_orthohmm/." )
+                         help = "orthogroups_gigantic_ids.tsv from orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/." )
     parser.add_argument( "--run-label", required = True )
     parser.add_argument( "--phyloname", required = True )
     parser.add_argument( "--output-dir", required = True )
@@ -103,6 +120,10 @@ def main():
     output_dir = Path( args.output_dir ).resolve()
     output_dir.mkdir( parents = True, exist_ok = True )
 
+    # Resolve config-derived orthogroups path against the workflow root so the
+    # relative config path survives NextFlow's work/ execution dirs.
+    input_orthogroups_tsv = resolve_against_workflow_root( args.orthogroups_tsv, args.workflow_root )
+
     log_path = output_dir / f"{args.phyloname}_{args.run_label}_log-augment_orthogroups.log"
     logging.basicConfig(
         level = logging.INFO,
@@ -116,11 +137,12 @@ def main():
     logger.info( "=" * 70 )
     logger.info( f"Run label:       {args.run_label}" )
     logger.info( f"Phyloname:       {args.phyloname}" )
+    logger.info( f"Workflow root:   {args.workflow_root}" )
     logger.info( f"Input TSV:       {args.input_tsv}" )
-    logger.info( f"Orthogroups:     {args.orthogroups_tsv}" )
+    logger.info( f"Orthogroups:     {input_orthogroups_tsv}" )
 
     protein_to_og, og_total_count, og_model_members = load_orthogroups(
-        Path( args.orthogroups_tsv ), logger,
+        input_orthogroups_tsv, logger,
     )
 
     out_path = output_dir / f"{args.phyloname}_{args.run_label}_orthogroups_augmented.tsv"

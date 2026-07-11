@@ -18,7 +18,7 @@ Scope:   BLOCK_orthogroups_ocl_X_features.
   - `../../ocl_phylogenetic_structures/output_to_input/BLOCK_orthogroups_X_ocl/<run_label>/structure_NNN/` — `4_ai-orthogroups-complete_ocl_summary.tsv` (spine) + `4_ai-path_states-per_orthogroup_per_species.tsv` (Table 2)
   - `../../dark_proteomes/output_to_input/BLOCK_classify_dark_proteome/dark_proteome/`
   - `../../hotspots/output_to_input/BLOCK_identify_hotspots/hotspots/`
-  - `../../secretome/output_to_input/STEP_2-filter_secretome/` + `../../secretome/output_to_input/BLOCK_secretome_evidence_table/`
+  - `../../secretome/output_to_input/STEP_2-filter_secretome/` + `../../secretome/output_to_input/STEP_1-build_evidence_table/`
 - Outputs TO: `../output_to_input/BLOCK_orthogroups_ocl_X_features/<run_label>/`
 - Conda env: `aiG-integrator-orthogroups_ocl_X_features`
 

@@ -12,8 +12,8 @@ Human:   Eric Edsinger
 - Parent (subproject): [`../../README.md`](../../README.md) — secretome overview
 - This workflow's AI guide: [`ai/AI_GUIDE.md`](ai/AI_GUIDE.md)
 - Reads from:
-  - `../../output_to_input/BLOCK_secretome_evidence_table/` (upstream STEP_1 wide tables)
-  - `../../../orthogroups/output_to_input/BLOCK_orthohmm/` (orthogroup augmentation)
+  - `../../output_to_input/STEP_1-build_evidence_table/` (upstream STEP_1 wide tables)
+  - `../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/` (orthogroup augmentation; canonical species70, 202,994 orthogroups)
   - `../../../one_direction_homologs/output_to_input/BLOCK_diamond_ncbi_nr/ncbi_nr_top_hits/` (blastp_top10 augmentation)
   - `INPUT_user/<filter_manifest>.json` (user-defined filter rules)
 - Outputs to: `../../output_to_input/STEP_2-filter_secretome/`
@@ -30,8 +30,8 @@ orthogroups, and top-10 BLAST hits along the way.
 
 ## Prerequisites
 
-1. **STEP_1 (BLOCK_secretome_evidence_table) complete** —
-   `../../output_to_input/BLOCK_secretome_evidence_table/` populated
+1. **STEP_1 (STEP_1-build_evidence_table) complete** —
+   `../../output_to_input/STEP_1-build_evidence_table/` populated
 2. **orthogroups** complete (for `augment_with_orthogroups`)
 3. **one_direction_homologs** complete (for `augment_with_blastp_top10`)
 4. **User filter manifest** in `INPUT_user/<name>.json`
@@ -74,4 +74,4 @@ Symlinked into `../../output_to_input/STEP_2-filter_secretome/`.
 
 - [`ai/AI_GUIDE.md`](ai/AI_GUIDE.md) — workflow execution + filter-manifest format
 - [`../AI_GUIDE.md`](../AI_GUIDE.md) — STEP concepts
-- `../../BLOCK_secretome_evidence_table/README.md` — upstream STEP_1
+- `../../STEP_1-build_evidence_table/README.md` — upstream STEP_1

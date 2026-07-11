@@ -14,13 +14,15 @@ data files** — there is no manifest to edit.
 Everything is read from sibling subprojects' `output_to_input/` directories,
 with the paths set in `../START_HERE-user_config.yaml`:
 
-- **Annogroups** (membership + pfam accessions/definitions) —
-  `ocl_phylogenetic_structures/output_to_input/BLOCK_annotations_X_ocl/<run_label>/<structure>/`
+- **Annogroups** (map + membership) — read directly from the `annogroups` subproject:
+  `annogroups/output_to_input/BLOCK_build_annogroups/<species_set>/<source>/`
+  (`2_ai-<source>-annogroup_map.tsv` + `2_ai-<source>-annogroup_membership.tsv`)
 - **Orthogroups** — `orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv`
 - **Bilateria species set** — `trees_species/output_to_input/BLOCK_permutations_and_features/Species_Clade_Species_Mappings/`
 
 The only choices you make are in `../START_HERE-user_config.yaml`:
-`run_label`, `annogroup_subtypes` (default `single`, `combo`), the input paths,
+`run_label`, `annogroup_types` (default `feature`, `combination`, `architecture`,
+`absent` — `absent` is the useful pfam-dark state row here), the input paths,
 the `bilateria_clade_id_name` (default `C103_Bilateria`), and execution settings.
 
 See the workflow `ai/AI_GUIDE.md` for the full input contract.

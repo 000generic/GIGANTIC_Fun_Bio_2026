@@ -13,7 +13,7 @@ Human:   Eric Edsinger
 - BLOCK template: [`BLOCK_homolog_counts/workflow-COPYME-homolog_counts/`](BLOCK_homolog_counts/workflow-COPYME-homolog_counts/)
 - Workflow AI guide: [`BLOCK_homolog_counts/workflow-COPYME-homolog_counts/ai/AI_GUIDE.md`](BLOCK_homolog_counts/workflow-COPYME-homolog_counts/ai/AI_GUIDE.md)
 - Reads FROM:
-  - `../orthogroups/output_to_input/BLOCK_orthohmm/` — orthogroup IDs
+  - `../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/` — orthogroup IDs
   - `../trees_gene_groups/output_to_input/gene_groups-hugo_hgnc/` — gene group names
   - `../trees_gene_families/output_to_input/` — gene family names
   - species70 phyloname map (from genomesDB / phylonames)
@@ -74,7 +74,7 @@ Single BLOCK because the work is independently runnable — no internal sequenti
 
 | Source | Subproject `output_to_input/` path | Feature_ID unit |
 |---|---|---|
-| OrthoHMM orthogroups | `orthogroups/output_to_input/BLOCK_orthohmm/` | orthogroup ID |
+| OrthoHMM orthogroups | `orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/` | orthogroup ID |
 | HGNC gene groups | `trees_gene_groups/output_to_input/gene_groups-hugo_hgnc/` | gene group name |
 | Curated gene families | `trees_gene_families/output_to_input/` | gene family name |
 
@@ -101,12 +101,10 @@ Headers follow GIGANTIC self-documenting convention: `Header_ID (description wit
 
 ## Server Hosting
 
-The per-source count TSVs are intended to be hosted on the GIGANTIC server. The canonical pattern (per `annotations_hmms/upload_to_server/` and `orthogroups/RUN-update_upload_to_server.sh`) is:
+The per-source count TSVs are hosted on the GIGANTIC server via the shared-helper pattern (matching `annotations_hmms` / `orthogroups` / `sequence_groups_X_species`):
 
-- `upload_to_server/upload_manifest.tsv` registers files for upload
-- `RUN-update_upload_to_server.sh` at subproject root performs the upload
-
-Both will be added in a follow-up round once the wide TSVs are first produced and reviewed.
+- Each workflow ships a per-workflow `upload_manifest.tsv` (at the workflow root) with self-documenting `display_label` / `description` / `order` columns; it travels into each `workflow-RUN_*` dir.
+- `RUN-update_upload_to_server.sh` at the subproject root is a thin wrapper that calls `../../server/ai/update_upload_to_server.py`, which publishes the newest `workflow-RUN_*` into a nested tree under `upload_to_server/BLOCK_homolog_counts/workflow-RUN_*/<N>-output/` and prunes superseded runs.
 
 ## Where to Look Next
 

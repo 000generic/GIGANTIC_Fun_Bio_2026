@@ -11,9 +11,11 @@ History:
 
 Generate standardized phylogenetic names from NCBI taxonomy.
 
-This is **STEP_1** of the 2-STEP phylonames architecture. It downloads
-NCBI taxonomy, generates phylonames for all species, creates your
-project-specific mapping, and produces a taxonomy summary for review.
+This is **STEP_1** of the 2-STEP phylonames architecture. It obtains an
+NCBI taxonomy snapshot (downloaded fresh, downloaded for a specific date,
+or reused from a copy you already have), generates phylonames for all
+species, creates your project-specific mapping, and produces a taxonomy
+summary for review.
 
 ## Where this fits
 
@@ -36,6 +38,27 @@ project-specific mapping, and produces a taxonomy summary for review.
    The unified driver runs locally or self-submits to SLURM based on
    `execution_mode` in the YAML (per §29). There is no separate
    `RUN-workflow.sbatch`.
+
+## Choosing the NCBI taxonomy snapshot (reproducibility)
+
+GIGANTIC fills gaps in NCBI taxonomy with **numbered unknown clades**
+(e.g., `Kingdom6555`), and those numbers — and therefore the phylonames —
+depend on the **exact NCBI snapshot used**. Re-running against a different
+snapshot can change assigned phylonames and silently break downstream
+subprojects that already keyed on the old values.
+
+Control the snapshot with `ncbi_taxonomy.source_mode` in
+`START_HERE-user_config.yaml`:
+
+| `source_mode` | What it does | When to use |
+|---|---|---|
+| `download_latest` *(default)* | Downloads the current `new_taxdump` from NCBI | First run of a new project |
+| `supply_path` | Reuses an existing snapshot dir (containing `rankedlineage.dmp`) via `taxonomy_path` — **no download** | Reproducible re-runs; pin to one snapshot |
+| `download_version` | Downloads a specific dated archive via `download_version` (e.g. `2026-03-01`) | Reproducible without keeping a local copy |
+
+For any analysis you intend to extend later, pin the snapshot
+(`supply_path` or `download_version`) so re-runs reproduce the same
+phylonames exactly.
 
 ## Results
 

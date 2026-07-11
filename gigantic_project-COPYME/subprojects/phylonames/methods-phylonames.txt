@@ -1,0 +1,386 @@
+================================================================================
+GIGANTIC  -  METHODS
+Subproject: phylonames  (GIGANTIC Phylogenetic Naming System)
+================================================================================
+Document       : methods-phylonames.txt
+Prepared by    : Claude Code (Opus 4.8, 1M context) with Eric Edsinger
+Last updated   : 2026-06-28
+Audience       : Collaborators and researchers using GIGANTIC outputs, and
+                 anyone who needs to understand how species identifiers in this
+                 project were produced.
+
+This is the served methods document for the phylonames subproject. It explains
+why the subproject exists, the concepts and vocabulary it introduces, the exact
+per-script workflow that produces its outputs, and how those outputs are shared
+(both to other GIGANTIC subprojects and to this data server).
+
+This document is also intended as the TEMPLATE for per-subproject methods
+documents across GIGANTIC: every subproject gets a methods-<subproject>.txt at
+its root, served at the top of its page, following the same section structure
+(0 scope, 1 motivation, 2 concepts, 3 inputs, 4 workflow overview, 5 methods by
+unit, 6 data products, 7 downstream consumers, 8 reproducibility, 9 limitations,
+10 provenance).
+
+
+--------------------------------------------------------------------------------
+0. HOW TO READ THIS DOCUMENT
+--------------------------------------------------------------------------------
+
+- Sections 1-2 are conceptual: what phylonames are and the vocabulary used
+  throughout GIGANTIC. Read these first if the term "phyloname" is new to you.
+- Sections 3-6 are operational: the inputs, the step-by-step workflow, the
+  individual scripts, and the files produced.
+- Sections 7-10 cover how outputs are consumed, how to reproduce them, the
+  known limitations, and provenance.
+
+A note on GIGANTIC vocabulary used below (these are precise terms, not
+interchangeable):
+  - STEP_N      : a sequentially dependent stage of a subproject (STEP_2 needs
+                  STEP_1). (A subproject whose stages are independent uses
+                  BLOCK_ instead.)
+  - workflow-COPYME-*  : the canonical, version-controlled template for a
+                  workflow. Users copy it to workflow-RUN_N-* to execute.
+  - workflow-RUN_N-*   : one execution instance. Its OUTPUT_pipeline/ holds the
+                  real result files.
+  - output_to_input/   : a subproject's outputs that OTHER GIGANTIC subprojects
+                  consume (inter-subproject hand-off).
+  - upload_to_server/  : the curated subset published to this GIGANTIC data
+                  server for human browsing.
+
+
+--------------------------------------------------------------------------------
+1. MOTIVATION AND PURPOSE
+--------------------------------------------------------------------------------
+
+Comparative genomics across many species requires ONE consistent, unambiguous,
+and phylogenetically informative identifier per species. Common alternatives are
+inadequate:
+
+  - Bare "Genus_species" is ambiguous (subspecies/strains collide) and carries
+    no information about where a species sits in the tree of life.
+  - NCBI taxon IDs are unique but opaque (a number tells a human nothing).
+  - Free-text lineages are inconsistent and not machine-friendly.
+
+phylonames solve this. A phyloname encodes a species' full ranked lineage in a
+single underscore-delimited token:
+
+    Kingdom_Phylum_Class_Order_Family_Genus_species
+
+so the identifier itself tells you the organism's classification, sorts
+sensibly, is safe to use in filenames and table columns, and is stable across
+every subproject in a GIGANTIC project.
+
+phylonames is therefore the FIRST subproject run in any GIGANTIC project. Its
+output - a mapping from each input species to its phyloname - is the canonical
+species identifier consumed by essentially every downstream subproject
+(genome database, orthogroups, annotations, species trees, gene trees, OCL
+analyses, and so on). See section 7.
+
+
+--------------------------------------------------------------------------------
+2. CONCEPTS AND TERMINOLOGY
+--------------------------------------------------------------------------------
+
+2.1 GIGANTIC-WIDE CONCEPTS INTRODUCED OR USED HERE
+
+  phyloname (standard format)
+      Kingdom_Phylum_Class_Order_Family_Genus_species
+      Example: Metazoa_Chordata_Mammalia_Primates_Hominidae_Homo_sapiens
+      The most commonly used identifier across GIGANTIC: column headers, table
+      values, lookups, and integration between subprojects.
+
+  phyloname_taxonid (extended format)
+      phyloname with the NCBI taxon ID appended after a triple underscore:
+      Kingdom_Phylum_Class_Order_Family_Genus_species___taxonID
+      Example: ...Hominidae_Homo_sapiens___9606
+      Used where absolute uniqueness is required (e.g., naming downloaded
+      genomic data files, distinguishing strains/subspecies that share a name).
+
+      RULE: "phyloname" and "phyloname_taxonid" are NOT interchangeable. Use the
+      term that matches the format actually present.
+
+  Field positions (0-indexed) within a phyloname:
+      [0] Kingdom   [1] Phylum   [2] Class   [3] Order
+      [4] Family    [5] Genus    [6:] species (join with "_" for multi-word
+                                  species/subspecies names)
+
+2.2 CONCEPTS SPECIFIC TO phylonames
+
+  Numbered unknown clades (e.g., Kingdom6555, Family1426)
+      NCBI taxonomy is incomplete: many lineages are missing one or more ranked
+      levels (no assigned Kingdom, Class, etc.). NCBI taxonomy is also only ONE
+      hypothesis of relationships. Rather than leave a gap (which would break the
+      fixed 7-field phyloname shape and silently merge unrelated species),
+      GIGANTIC fills each missing level with a numbered placeholder of the form
+      CladeTypeNumber (no underscore between type and number).
+
+      The number is assigned from the "first named clade below" the missing
+      level: all species that share the same first-named-clade-below at a given
+      rank receive the SAME number, which groups genuinely related species
+      together despite the missing higher taxonomy.
+
+  Clade-splitting artifact (a known limitation - see section 9)
+      Because a number is keyed on the first NAMED clade below, a single real
+      unknown higher clade that contains several named lower clades gets SPLIT
+      into several numbered clades (one per lower clade). This is a workaround,
+      not a feature; it can affect analyses whose species span multiple of those
+      lower clades. User-provided phylonames (STEP_2) are the fix.
+
+  NOTINNCBI species
+      Species absent from NCBI taxonomy entirely (recently described, alternate
+      spelling, specialized database). They are NEVER dropped; they receive
+      explicit NOTINNCBI placeholders in each missing rank and can be corrected
+      with user-provided phylonames in STEP_2.
+
+  User-provided phylonames and the UNOFFICIAL suffix (STEP_2)
+      Users may override NCBI-derived phylonames with values from the literature
+      or an alternative phylogenetic hypothesis (e.g., to replace numbered
+      clades with real names). Any clade level whose value DIFFERS from the
+      NCBI-derived value is marked with an UNOFFICIAL suffix (e.g.,
+      HolozoaUNOFFICIAL), because assigning a clade is a taxonomic DECISION:
+      NCBI made one decision; a user override is, by definition, "unofficial."
+      Levels that match NCBI stay unmarked. This keeps the source of every
+      assignment transparent. Marking can be disabled globally.
+
+
+--------------------------------------------------------------------------------
+3. INPUTS
+--------------------------------------------------------------------------------
+
+3.1 Species list (required)
+    One species per line, "Genus_species" (underscore, not space). Lines
+    beginning with "#" are comments. Resolved in priority order:
+      1. workflow-local INPUT_user/species_list.txt (per-run override), else
+      2. project-wide INPUT_user/species_set/species_list.txt (default; copied
+         into the run's INPUT_user/ at runtime so each run archives a snapshot).
+
+3.2 NCBI taxonomy snapshot (required; obtained by STEP_1 script 001)
+    The NCBI "new_taxdump" release. The single critical file within it is
+    rankedlineage.dmp, which lists, per taxon, the ranked lineage used to build
+    phylonames. How the snapshot is obtained is configurable (see section 8).
+
+3.3 User-provided phylonames (optional; STEP_2 only)
+    A TSV of overrides: genus_species, custom_phyloname, unofficial_action
+    (ADD_UNOFFICIAL for the standard case; SUPPRESS_UNOFFICIAL to use a value
+    as-is). Staged via the project-level INPUT_user/phylonames/ slot, or written
+    directly into the STEP_2 workflow's INPUT_user/ for quick runs.
+
+
+--------------------------------------------------------------------------------
+4. WORKFLOW OVERVIEW
+--------------------------------------------------------------------------------
+
+phylonames is a two-STEP subproject (STEP_2 depends on STEP_1):
+
+    STEP_1  generate_and_evaluate   (always run)
+            Obtain the NCBI snapshot -> generate phylonames for ALL NCBI species
+            -> extract the project's species into a mapping -> summarize for
+            review.
+
+    STEP_2  apply_user_phylonames   (optional)
+            Apply user overrides on top of the STEP_1 mapping, with UNOFFICIAL
+            marking -> summarize the final mapping.
+
+Each STEP is a NextFlow workflow. The unified driver RUN-workflow.sh runs locally
+or self-submits to SLURM based on execution_mode in START_HERE-user_config.yaml.
+The shared conda environment (aiG-phylonames) is created automatically on first
+run. Python scripts use only the standard library.
+
+
+--------------------------------------------------------------------------------
+5. METHODS BY STEP
+--------------------------------------------------------------------------------
+
+5.1 STEP_1  -  generate_and_evaluate
+    Workflow: STEP_1-generate_and_evaluate/workflow-COPYME-generate_phylonames/
+    Scripts live in that workflow's ai/scripts/.
+
+    001_ai-bash-download_ncbi_taxonomy.sh   (obtain the NCBI snapshot)
+        Makes an NCBI new_taxdump snapshot available as
+        database-ncbi_taxonomy_latest (a directory or symlink containing
+        rankedlineage.dmp). Three source modes, set by ncbi_taxonomy.source_mode
+        in START_HERE-user_config.yaml:
+          download_latest   - download the current new_taxdump from NCBI (default)
+          supply_path       - reuse an existing snapshot directory already on
+                              disk (no download); the reproducible choice
+          download_version  - download a specific dated archive
+                              (new_taxdump_YYYY-MM-DD.zip)
+        The script validates that rankedlineage.dmp is present and fails fast
+        otherwise. See section 8 for why the mode matters.
+
+    002_ai-python-generate_phylonames.py    (generate ALL phylonames)
+        Reads rankedlineage.dmp line by line (pipe-delimited: taxon_id,
+        taxon_name, species, genus, family, order, class, phylum, kingdom,
+        superkingdom). For each taxon it extracts the ranked lineage, cleans
+        problematic characters, and fills any missing rank with a numbered
+        unknown clade (keyed on the first named clade below; numbers assigned by
+        a single counter in file order, so the assignment is deterministic for a
+        given snapshot). Outputs (OUTPUT_pipeline/2-output/):
+          phylonames                              - every phyloname, one per line
+          phylonames_taxonid                      - same, with ___taxonID
+          map-phyloname_X_ncbi_taxonomy_info.tsv  - full per-taxon mapping
+          map-numbered_clades_X_defining_clades.tsv - numbered clade -> defining
+                                                    clade reference
+          failed-entries.txt                      - unparseable/empty lines
+          generation_metadata.txt                 - counts, timestamp, version
+        (2-output is large, ~hundreds of MB per file, and is not published by
+        default; most projects only need the small per-project mapping below.)
+
+    003_ai-python-create_species_mapping.py (extract this project's species)
+        Joins the input species list against the master mapping from 002 and
+        writes the project-specific mapping (OUTPUT_pipeline/3-output/):
+          <project>_map-genus_species_X_phylonames.tsv
+        Columns: genus_species, phyloname, phyloname_taxonid, source,
+        original_ncbi_phyloname  (the same 5-column shape STEP_2 emits, so
+        downstream sees one schema regardless of which STEP last ran). For
+        STEP_1 every row has source=NCBI and original_ncbi_phyloname=phyloname.
+
+    004_ai-python-generate_taxonomy_summary.py (human review report)
+        Produces a readable summary (OUTPUT_pipeline/4-output/, Markdown + HTML):
+        taxonomic distribution, which species got numbered clades, and which are
+        NOTINNCBI - i.e., exactly the species a user might want to correct in
+        STEP_2.
+
+    005_ai-python-write_run_log.py          (lab-notebook record)
+        Writes a timestamped run log (species processed, output locations,
+        sample mappings, scripts run) into the workflow's ai/logs/.
+
+5.2 STEP_2  -  apply_user_phylonames   (optional)
+    Workflow: STEP_2-apply_user_phylonames/workflow-COPYME-apply_user_phylonames/
+
+    001_ai-python-apply_user_phylonames.py  (apply overrides + UNOFFICIAL)
+        Takes the STEP_1 mapping and the user-provided phylonames TSV. For each
+        overridden species, replaces the phyloname and marks each clade level
+        that differs from the NCBI-derived value with UNOFFICIAL (unless
+        suppressed). Outputs (OUTPUT_pipeline/1-output/):
+          final_project_mapping.tsv      - the final 5-column mapping (this is
+                                           the authoritative project mapping)
+          unofficial_clades_report.tsv   - which clades were marked UNOFFICIAL
+        Rows touched by the user get source=USER and retain
+        original_ncbi_phyloname.
+
+    002_ai-python-generate_taxonomy_summary.py (review report, post-override)
+        Same summary as STEP_1 004, reflecting the user overrides
+        (OUTPUT_pipeline/2-output/, Markdown + HTML).
+
+    003_ai-python-write_run_log.py          (lab-notebook record)
+
+
+--------------------------------------------------------------------------------
+6. DATA PRODUCTS
+--------------------------------------------------------------------------------
+
+6.1 output_to_input/   (consumed by OTHER GIGANTIC subprojects)
+
+    The canonical hand-off is the per-project mapping, exposed three ways:
+
+      output_to_input/STEP_1-generate_and_evaluate/maps/
+          <project>_map-genus_species_X_phylonames.tsv   (NCBI-only mapping)
+      output_to_input/STEP_2-apply_user_phylonames/maps/
+          <project>_map-genus_species_X_phylonames.tsv   (with user overrides)
+      output_to_input/maps/
+          <project>_map-genus_species_X_phylonames.tsv   (CONVENIENCE symlink;
+          points to whichever STEP ran most recently - STEP_2 if it was run,
+          else STEP_1)
+
+    All entries are symlinks into the canonical workflow-RUN_N OUTPUT_pipeline,
+    so there is one set of real files and a single source of truth. Downstream
+    subprojects read output_to_input/maps/ and therefore automatically pick up
+    user overrides when STEP_2 has been run.
+
+6.2 upload_to_server/   (curated, published to this data server)
+
+    Publishing is manifest-driven (it is NOT a direct copy from the workflow).
+    Each workflow's upload_manifest.tsv lists which OUTPUT_pipeline files to
+    publish and how to label them. The subproject-level helper
+    RUN-update_upload_to_server.sh reads those manifests and assembles
+    upload_to_server/ as symlinks; the data server then follows those symlinks.
+    For phylonames the published set is the per-project species mapping (the
+    species list you see on this server) and the human-readable taxonomy
+    summaries. The very large master files from STEP_1 2-output are not
+    published by default.
+
+
+--------------------------------------------------------------------------------
+7. DOWNSTREAM CONSUMERS
+--------------------------------------------------------------------------------
+
+phylonames must run first; essentially every per-species subproject reads
+output_to_input/maps/, including:
+  - genomesDB            (names standardized proteome files by phyloname)
+  - orthogroups          (labels orthogroup membership by phyloname)
+  - annotations_hmms     (keys per-species annotation files by phyloname)
+  - trees_species        (labels species-tree leaves by phyloname)
+  - trees_gene_families / trees_gene_groups (label gene-tree tips by phyloname)
+  - ocl_phylogenetic_structures and the integrator (propagate phyloname labels
+    through evolutionary OCL analyses and combined tables)
+  - gene_sizes, homolog_counts, hotspots, secretome, one_direction_homologs, ...
+
+
+--------------------------------------------------------------------------------
+8. REPRODUCIBILITY
+--------------------------------------------------------------------------------
+
+Two facts govern reproducibility of phylonames:
+
+  (a) The generation is DETERMINISTIC. Given a fixed rankedlineage.dmp, script
+      002 always produces the identical master list (numbered clades included),
+      because numbers are assigned by a single counter in file order with no
+      randomness.
+
+  (b) Numbered clades DEPEND ON THE EXACT NCBI SNAPSHOT. The number assigned to
+      a given clade depends on the counter state over the WHOLE file, so a
+      DIFFERENT NCBI snapshot (a different download date) can change numbered
+      clades, and NCBI itself revises named lineages over time. Therefore named
+      lineages are stable, but numbered clades are only stable across runs that
+      use the SAME snapshot.
+
+To make a project's phylonames reproducible, PIN the snapshot:
+  - source_mode: supply_path  with taxonomy_path pointing at a preserved
+    snapshot directory (the recommended approach once a project has a snapshot),
+    or
+  - source_mode: download_version  with a dated NCBI archive.
+A project that pins its snapshot can regenerate byte-identical phylonames at any
+time. download_latest is convenient for a first run but is not reproducible,
+because "latest" moves.
+
+
+--------------------------------------------------------------------------------
+9. LIMITATIONS AND KNOWN ARTIFACTS
+--------------------------------------------------------------------------------
+
+  - Clade-splitting (section 2.2): a single real unknown higher clade containing
+    several named lower clades is split into several numbered clades. Use STEP_2
+    user-provided phylonames to correct cases that matter for an analysis.
+
+  - Numbered clades are snapshot-dependent (section 8). They are GIGANTIC
+    placeholders, not NCBI assignments, and should be treated as such. Named
+    clades are the stable, citable part of a phyloname.
+
+  - NOTINNCBI species carry placeholder phylonames until corrected in STEP_2.
+
+  - NCBI taxonomy is incomplete and represents one hypothesis of relationships;
+    a phyloname reflects that classification, not an independent phylogenetic
+    inference.
+
+
+--------------------------------------------------------------------------------
+10. PROVENANCE AND VERSIONING
+--------------------------------------------------------------------------------
+
+  - The mapping served here is this project's fixed, authoritative species
+    mapping (the final mapping after any user overrides). Its named lineages
+    follow the NCBI new_taxdump snapshot in use when the mapping was generated;
+    its numbered clades are GIGANTIC placeholders specific to that snapshot
+    (section 8).
+  - Each downloaded snapshot records its own download_metadata.txt (source URL,
+    date, checksum). A pinned snapshot kept under the project's
+    INPUT_user/ncbi_taxonomy/ carries that provenance forward and allows exact
+    regeneration.
+  - Every workflow run writes a timestamped run log to its ai/logs/ directory,
+    and AI-assisted development sessions are captured to the project research
+    notebook, so the full chain of how these outputs were produced is recorded.
+
+================================================================================
+End of methods-phylonames.txt
+================================================================================

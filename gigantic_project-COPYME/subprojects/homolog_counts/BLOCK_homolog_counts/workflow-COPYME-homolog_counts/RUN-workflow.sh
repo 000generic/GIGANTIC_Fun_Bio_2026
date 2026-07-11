@@ -32,7 +32,8 @@
 # 1. Optionally self-submits as a SLURM job (when execution_mode is "slurm")
 # 2. Auto-creates the conda env aiG-homolog_counts-homolog_counts from
 #    ai/conda_environment.yml on first run (mamba preferred; conda fallback)
-# 3. Runs 5 NextFlow processes (001 first, then 002-004 in parallel, then 005)
+# 3. Runs 8 NextFlow processes (001 first, then 002-004 counts in parallel,
+#    then 006 short-header rewrites per count, then 005 run log)
 # 4. Creates symlinks for downstream subprojects in output_to_input/BLOCK_homolog_counts/
 #
 ################################################################################
@@ -270,7 +271,7 @@ echo "========================================================================"
 echo "SUCCESS! homolog_counts pipeline complete."
 echo ""
 echo "Research outputs (real files):"
-echo "  OUTPUT_pipeline/1-output/ through 5-output/"
+echo "  OUTPUT_pipeline/1-output/ through 8-output/"
 echo ""
 echo "Downstream symlinks:"
 echo "  output_to_input/BLOCK_homolog_counts/"

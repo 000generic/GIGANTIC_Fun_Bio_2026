@@ -25,7 +25,7 @@ Human:   Eric Edsinger
 ## Status — SCAFFOLD ONLY
 
 This BLOCK is a separate (orthogonal) implementation track to the
-`BLOCK_secretome_evidence_table` + `STEP_2-filter_secretome` chain.
+`STEP_1-build_evidence_table` + `STEP_2-filter_secretome` chain.
 It implements the Moroz lab spec (2026-05-17) directly as a sequence
 of KEEPER/DROPPER filters per the spec's pipeline.
 
@@ -56,7 +56,7 @@ next script's input:
 ## Relationship to the other secretome units
 
 - This BLOCK implements the Moroz spec **directly** via per-script filters.
-- The sibling `BLOCK_secretome_evidence_table` + `STEP_2-filter_secretome`
+- The sibling `STEP_1-build_evidence_table` + `STEP_2-filter_secretome`
   chain implements an **evidence-table-first** approach: pivot all annotation
   evidence to wide tables, then apply user-defined filter manifests.
 - Both approaches are kept; the user will compare results once both are

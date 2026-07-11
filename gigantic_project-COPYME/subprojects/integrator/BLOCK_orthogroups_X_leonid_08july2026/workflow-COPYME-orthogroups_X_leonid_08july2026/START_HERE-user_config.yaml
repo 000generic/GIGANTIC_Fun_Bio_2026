@@ -1,0 +1,106 @@
+# ============================================================================
+# WORKFLOW CONFIGURATION - Edit this file before running
+# ============================================================================
+#
+# This is the main configuration file for this workflow.
+# Review and update the settings below for your project, then run:
+#
+#     bash RUN-workflow.sh
+#
+# ============================================================================
+#
+# GIGANTIC integrator - BLOCK_orthogroups_X_leonid_08july2026
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 08
+# Human: Eric Edsinger
+#
+# Builds ONE table with one row per OrthoHMM orthogroup (requested by Leonid):
+#   Orthogroup_ID | Sequence_IDs | Member_Sequence_Count | Is_Singleton
+#   | Pfam_Accessions | Pfam_Names | GO_Accessions | GO_Names
+#   | PANTHER_Accessions | PANTHER_Names
+#   | <one column per non-redundant species-tree clade/species: member counts>
+#
+# The species-tree deconvolution columns are the UNION of clades (internal nodes
+# and species tips) across the selected structures (001, 003, 031, 032); each
+# cell is the count of the orthogroup's member sequences within that clade, and
+# each column header records which of the selected structures the clade is in.
+#
+# Annotations (Pfam / GO / PANTHER) come from the validated `annogroups`
+# subproject FEATURE-type membership, keyed on the full GIGANTIC sequence ID.
+# This is a structure-independent integration (a handful of singleton processes).
+
+# Run identification — names the output_to_input subdirectory for this run.
+run_label: "species70_OrthoHMM_leonid_08july2026"
+
+# Species set identifier (must match the upstream annogroup + orthogroup subprojects)
+species_set_name: "species70"
+
+# Annotation sources to aggregate per orthogroup (non-redundant), IN OUTPUT
+# COLUMN ORDER. Each becomes a paired <Display>_Accessions / <Display>_Names
+# column. These are annogroups subproject SOURCE names.
+annotation_sources:
+  - "pfam"
+  - "go"
+  - "panther"
+
+# Input paths (relative to this workflow directory)
+inputs:
+  # Orthogroups spine. Headerless TSV: OG_ID then tab-delimited member full
+  # GIGANTIC IDs. Each member's species comes from its -n_<phyloname>.
+  orthogroups_file: "../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv"
+
+  # Annogroups subproject output_to_input ROOT (BLOCK_build_annogroups). Per-source
+  # files are read from <annogroups_dir>/<species_set_name>/<source>/:
+  #   2_ai-<source>-annogroup_map.tsv         (accession -> name, feature rows)
+  #   2_ai-<source>-annogroup_membership.tsv  (sequence -> feature annogroup)
+  annogroups_dir: "../../../annogroups/output_to_input/BLOCK_build_annogroups"
+
+  # Clade species sets (from trees_species). Each clade_id_name resolves to its
+  # descendant species; GIGANTIC Rule 6 makes it identical across the structures
+  # it appears in, so the union of clades is non-redundant.
+  clade_species_mappings: "../../../trees_species/output_to_input/BLOCK_permutations_and_features/Species_Clade_Species_Mappings/9_ai-clade_species_mappings-all_structures.tsv"
+
+  # Species-tree structures to deconvolve across (Leonid's request). The output
+  # clade columns are the UNION across these; each header notes which of them the
+  # clade appears in.
+  deconvolution_structures:
+    - "structure_001"
+    - "structure_003"
+    - "structure_031"
+    - "structure_032"
+
+# Output configuration
+output:
+  #   OUTPUT_pipeline/1-output/  the Leonid table (headline deliverable)
+  #   OUTPUT_pipeline/2-output/  validation report
+  base_dir: "OUTPUT_pipeline"
+
+# =============================================================================
+# Computational Resources
+# =============================================================================
+# Used by SLURM (job resources) when execution_mode is "slurm". The build holds
+# the protein->orthogroup map (~1.4M members) plus per-source accession sets and
+# streams three large annogroup membership files (pfam/go/panther), so give it
+# generous memory.
+
+cpus: 4
+memory_gb: 64
+time_hours: 8
+
+# =============================================================================
+# Execution Mode  ("local" runs the driver here; "slurm" self-submits it)
+# =============================================================================
+execution_mode: "slurm"
+
+# SLURM settings (only used when execution_mode is "slurm")
+slurm_account: "your_account"
+slurm_qos: "your_qos"
+
+# =============================================================================
+# Parallelism Mode  (this BLOCK has no fan-out; "local" is the natural choice)
+# =============================================================================
+parallelism_mode: "local"
+
+# =============================================================================
+# Resume from cached NextFlow work directory
+# =============================================================================
+resume: false

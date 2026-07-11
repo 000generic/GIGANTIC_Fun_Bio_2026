@@ -8,18 +8,19 @@ nextflow.enable.dsl = 2
 // Secretome Evidence Table Builder
 // =============================================================================
 //
-// SCAFFOLD STATUS ( 2026-05-23 ):
-//   - validate_proteome_manifest:  IMPLEMENTED ( reuses standard pattern )
-//   - build_evidence_table:        STUB ( script not yet written; pivots
-//                                  the long-format DB output of
-//                                  BLOCK_build_annotation_database into one
-//                                  wide TSV per species )
-//   - write_run_log:               IMPLEMENTED
+// Processes:
+//   - validate_proteome_manifest:  validate the species proteome manifest.
+//   - build_evidence_table:        pivot the long-format standardized
+//                                  annotation database produced by
+//                                  annotations_hmms/BLOCK_build_annotation_database
+//                                  into one wide per-protein evidence table per
+//                                  species (002_ai-python-build_evidence_table.py).
+//   - write_run_log:               final completion marker + provenance log.
 //
-// The pivot script ( 002_ai-python-build_evidence_table.py ) is the substantive
-// piece. It will be designed and written after the upstream tool RUNs +
-// BLOCK_build_annotation_database are run end-to-end so the actual input
-// shapes are known.
+// Path handling: upstream input paths in START_HERE-user_config.yaml are
+// RELATIVE to this workflow directory. main.nf passes an absolute
+// --workflow-root ( ${projectDir}/.. ) to each script, which resolves those
+// relative paths against it so they survive NextFlow's work/ execution dirs.
 // =============================================================================
 
 scripts_dir = "${projectDir}/scripts"
@@ -45,11 +46,13 @@ process validate_proteome_manifest {
 /*
  * Process 2: Build per-protein evidence table for one species
  *
- * SCAFFOLD: script not yet written. Will pivot from long-format DB at
- * params.annotation_database_dir + proteome FASTA into wide per-protein TSV.
+ * Pivots the long-format standardized annotation database
+ * (params.annotation_database_dir) + the species proteome FASTA into one wide
+ * per-protein evidence table, augmented with DeepLoc per-compartment
+ * probabilities (params.deeploc_csv_dir).
  *
- * Expected input tuple: ( species_name, proteome_path, phyloname )
- * Expected output:      <phyloname>_evidence_table.tsv
+ * Input tuple:   ( species_name, proteome_path, phyloname )
+ * Output:        <phyloname>_evidence_table.tsv
  */
 process build_evidence_table {
     publishDir "${params.output_dir}/2-output", mode: 'copy'
@@ -64,6 +67,7 @@ process build_evidence_table {
     script:
     """
     python3 ${scripts_dir}/002_ai-python-build_evidence_table.py \
+        --workflow-root ${projectDir}/.. \
         --input-fasta ${proteome_path} \
         --annotation-database-dir ${params.annotation_database_dir} \
         --deeploc-csv-dir ${params.deeploc_csv_dir} \
@@ -99,7 +103,7 @@ process write_run_log {
 // ============================================================================
 // Workflow
 // ============================================================================
-// NOTE: Symlinks for output_to_input/BLOCK_secretome_evidence_table/ are
+// NOTE: Symlinks for output_to_input/STEP_1-build_evidence_table/ are
 // created by RUN-workflow.sh AFTER this pipeline completes. NextFlow only
 // writes real files to OUTPUT_pipeline/N-output/ directories.
 // ============================================================================

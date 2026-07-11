@@ -35,7 +35,9 @@ inputs:
   species70_phyloname_map: "../../../phylonames/output_to_input/STEP_1-generate_and_evaluate/maps/species70_map-genus_species_X_phylonames.tsv"
 
   # Upstream subproject output_to_input/ directories
-  orthogroups_orthohmm_dir: "../../../orthogroups/output_to_input/BLOCK_orthohmm"
+  # Canonical species70 orthohmm run: BLOCK_orthohmm_GIGANTIC (202,994 orthogroups /
+  # 1,375,926 members) — NOT the older BLOCK_orthohmm run (170,027 orthogroups).
+  orthogroups_orthohmm_dir: "../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC"
   trees_gene_groups_dir:   "../../../trees_gene_groups/output_to_input/gene_groups-hugo_hgnc"
   trees_gene_families_dir: "../../../trees_gene_families/output_to_input"
 

@@ -14,7 +14,7 @@ Human:   Eric Edsinger
 - Parent (project): [`../../../../AI_GUIDE.md`](../../../../AI_GUIDE.md)
 - Workflow README: [`../README.md`](../README.md)
 - Reads from:
-  - `../../../../orthogroups/output_to_input/BLOCK_orthohmm/`
+  - `../../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/`
   - `../../../../trees_gene_groups/output_to_input/gene_groups-hugo_hgnc/`
   - `../../../../trees_gene_families/output_to_input/`
   - species70 phyloname map (`../INPUT_user/`)
@@ -54,9 +54,12 @@ On first run, the conda env `aiG-homolog_counts-homolog_counts` is auto-created 
 | 2 | `002_ai-python-count-orthogroups_orthohmm.py` | Count orthogroups per species | `2-output/2_ai-counts-orthogroups_orthohmm.tsv` |
 | 3 | `003_ai-python-count-trees_gene_groups.py` | Count HGNC gene group homologs per species | `3-output/3_ai-counts-trees_gene_groups.tsv` |
 | 4 | `004_ai-python-count-trees_gene_families.py` | Count curated gene family homologs per species | `4-output/4_ai-counts-trees_gene_families.tsv` |
-| 5 | `005_ai-python-write_run_log.py` | Write timestamped run log to `ai/logs/` and `5-output/` | `ai/logs/<timestamp>_run_log.md` |
+| 5 | `005_ai-python-write_run_log.py` | Write timestamped run log to `ai/logs/` and `5-output/` | `5-output/5_ai-run_log.md` |
+| 6 | `006_ai-python-rewrite_species_column_headers.py` | Rewrite the 70 phyloname columns to short human-readable species labels; runs once per source count TSV | `6-/7-/8-output/*-short_species_headers.tsv` |
 
-Scripts 002-004 are independent of each other and may run in parallel under NextFlow. All three read the canonical species70 column order from script 001's output to guarantee identical column shape across source TSVs.
+Scripts 002-004 are independent of each other and may run in parallel under NextFlow. All three read the canonical species70 column order from script 001's output to guarantee identical column shape across source TSVs. Script 006 runs three times (once per source count TSV, each downstream of its counter) writing short-header variants to `6-output/` (orthogroups), `7-output/` (gene groups), and `8-output/` (gene families). Script 005 (`write_run_log`) runs last, after all counts and header rewrites, per §45.
+
+Path handling: `main.nf` passes `--workflow-root ${projectDir}/..` to scripts 001-004; each resolves its relative upstream input path against that absolute root so the paths survive execution inside NextFlow's `work/` task dir.
 
 ## Output Layout
 
@@ -67,7 +70,10 @@ workflow-COPYME-homolog_counts/
 │   ├── 2-output/2_ai-counts-orthogroups_orthohmm.tsv
 │   ├── 3-output/3_ai-counts-trees_gene_groups.tsv
 │   ├── 4-output/4_ai-counts-trees_gene_families.tsv
-│   └── 5-output/5_ai-run_log.md
+│   ├── 5-output/5_ai-run_log.md
+│   ├── 6-output/6_ai-counts-orthogroups_orthohmm-short_species_headers.tsv
+│   ├── 7-output/7_ai-counts-trees_gene_groups-short_species_headers.tsv
+│   └── 8-output/8_ai-counts-trees_gene_families-short_species_headers.tsv
 └── ai/logs/<timestamp>_run_log.md
 ```
 
@@ -118,4 +124,7 @@ Do NOT use `-resume` after script changes — stale cached scripts can mask the 
 
 ## Server Upload
 
-After validation passes, curated count TSVs are copied to `../../upload_to_server/` and registered in `upload_to_server/upload_manifest.tsv`. The upload itself is invoked via subproject-level `RUN-update_upload_to_server.sh` (to be added in a follow-up round, matching the orthogroups / annotations_hmms convention).
+Publishing to the GIGANTIC server uses the shared-helper mechanism (matching orthogroups / annotations_hmms / sequence_groups_X_species):
+
+- This workflow ships a per-workflow `upload_manifest.tsv` (at the workflow root, next to `START_HERE-user_config.yaml`) listing the files to publish with self-documenting `display_label` / `description` / `order` columns. It travels with the workflow into each `workflow-RUN_*` dir.
+- From the subproject root, run `bash RUN-update_upload_to_server.sh`. This thin wrapper calls `../../server/ai/update_upload_to_server.py`, which reads the newest `workflow-RUN_*/upload_manifest.tsv` and symlinks the files into `upload_to_server/BLOCK_homolog_counts/workflow-RUN_*/<N>-output/`, pruning superseded runs.

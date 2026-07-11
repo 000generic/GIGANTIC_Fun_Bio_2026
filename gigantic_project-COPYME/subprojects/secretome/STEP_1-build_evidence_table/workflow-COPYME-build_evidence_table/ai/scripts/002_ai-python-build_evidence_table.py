@@ -115,9 +115,30 @@ DEEPLOC_STRING_COLUMNS = [
 ]
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config paths (annotation_database_dir, deeploc_csv_dir) are relative to the
+    workflow directory (where START_HERE-user_config.yaml lives). NextFlow runs
+    each task in a work/ subdir, so a bare relative path would resolve against
+    the wrong CWD. Anchor relative paths against workflow_root (an absolute path
+    passed by main.nf as ${projectDir}/..); leave already-absolute paths
+    (e.g. the manifest's proteome_path) untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description = "Pivot long-format standardized annotation database into one wide per-protein evidence table for one species."
+    )
+    parser.add_argument(
+        "--workflow-root",
+        required = True,
+        help = "Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --annotation-database-dir and --deeploc-csv-dir are resolved against this.",
     )
     parser.add_argument(
         "--input-fasta",
@@ -486,6 +507,13 @@ def build_output_row( phyloname, protein_identifier, sequence_length, database_n
 def main():
     args = parse_args()
 
+    # Resolve upstream input paths against the workflow root so relative config
+    # paths survive NextFlow's work/ execution dirs (absolute paths pass through
+    # unchanged — e.g. the manifest's proteome_path).
+    input_fasta_path = resolve_against_workflow_root( args.input_fasta, args.workflow_root )
+    input_annotation_database_dir = resolve_against_workflow_root( args.annotation_database_dir, args.workflow_root )
+    input_deeploc_csv_dir = resolve_against_workflow_root( args.deeploc_csv_dir, args.workflow_root )
+
     output_directory = Path( args.output_dir ).resolve()
     output_directory.mkdir( parents = True, exist_ok = True )
 
@@ -508,24 +536,25 @@ def main():
     include_set = set( s.strip() for s in args.include_databases.split( "," ) if s.strip() )
 
     logger.info( f"Phyloname:                  {args.phyloname}" )
-    logger.info( f"Input FASTA:                {args.input_fasta}" )
-    logger.info( f"Annotation database dir:    {args.annotation_database_dir}" )
-    logger.info( f"DeepLoc CSV dir:            {args.deeploc_csv_dir}" )
+    logger.info( f"Workflow root:              {args.workflow_root}" )
+    logger.info( f"Input FASTA:                {input_fasta_path}" )
+    logger.info( f"Annotation database dir:    {input_annotation_database_dir}" )
+    logger.info( f"DeepLoc CSV dir:            {input_deeploc_csv_dir}" )
     logger.info( f"Include databases filter:   {sorted( include_set ) if include_set else '(none — include everything discovered)'}" )
     logger.info( f"Output dir:                 {output_directory}" )
 
     # --- Proteome FASTA: drives row set --------------------------------------
     protein_ids_with_lengths = read_proteome_protein_ids_and_lengths(
-        Path( args.input_fasta ), logger,
+        input_fasta_path, logger,
     )
     if len( protein_ids_with_lengths ) == 0:
-        logger.error( f"CRITICAL ERROR: proteome FASTA contained 0 proteins: {args.input_fasta}" )
+        logger.error( f"CRITICAL ERROR: proteome FASTA contained 0 proteins: {input_fasta_path}" )
         sys.exit( 1 )
     protein_id_set = set( pid for ( pid, _ ) in protein_ids_with_lengths )
 
     # --- Discover available database TSVs ------------------------------------
     database_names___paths = discover_database_files(
-        args.annotation_database_dir, args.phyloname, include_set, logger,
+        input_annotation_database_dir, args.phyloname, include_set, logger,
     )
 
     # --- Read each database into protein_id -> records dict ------------------
@@ -553,7 +582,7 @@ def main():
         logger.info( f"  database_{database_name}: {sum( len( v ) for v in protein_ids___records.values() )} rows across {len( protein_ids___records )} proteins (after skipping {orphan_count} orphan IDs)" )
 
     # --- Read DeepLoc CSV for per-compartment probabilities ------------------
-    deeploc_csv_path = Path( args.deeploc_csv_dir ) / f"{args.phyloname}_deeploc_predictions.csv"
+    deeploc_csv_path = input_deeploc_csv_dir / f"{args.phyloname}_deeploc_predictions.csv"
     deeploc_csv_records = read_deeploc_csv( deeploc_csv_path, logger )
     deeploc_foreign_ids = [ pid for pid in deeploc_csv_records.keys() if pid not in protein_id_set ]
     if len( deeploc_foreign_ids ) > 0:

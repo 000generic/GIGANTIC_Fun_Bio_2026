@@ -1,4 +1,4 @@
-# AI Guide: BLOCK_secretome_evidence_table
+# AI Guide: STEP_1-build_evidence_table
 
 <!-- ============================================================================
 AI:      Claude Code | Opus 4.7 | 2026 May 23 (workflow scaffold)
@@ -15,7 +15,7 @@ Human:   Eric Edsinger
 - Reads FROM:
   - `../../annotations_hmms/output_to_input/BLOCK_build_annotation_database/` — long-format standardized DB
   - `INPUT_user/proteome_manifest.tsv` — list of phylonames + proteome FASTA paths
-- Outputs TO: `../output_to_input/BLOCK_secretome_evidence_table/` — one wide TSV per species
+- Outputs TO: `../output_to_input/STEP_1-build_evidence_table/` — one wide TSV per species
 - Downstream STEP: `../STEP_2-filter_secretome/` consumes the evidence tables
 - 3 scripts (validate / build_evidence_table / `write_run_log` per §45)
 - Conda env: `aiG-secretome-build_evidence_table`
@@ -42,23 +42,25 @@ filters without re-running upstream tools.
 | # | Script | Function |
 |---|--------|----------|
 | 001 | `validate_proteome_manifest.py` | Validate `INPUT_user/proteome_manifest.tsv`; pair each phyloname with its proteome path |
-| 002 | `build_evidence_table.py` | (Substantive pivot) — STUB / pending finalization |
+| 002 | `build_evidence_table.py` | Pivot the long-format standardized annotation database → one wide per-protein evidence table per species |
 | 003 | `write_run_log.py` | Timestamped run log per §45 |
 
-## Status (2026-05-26)
+## Status
 
-Validate + run-log implemented. Script 002 (`build_evidence_table.py`)
-is designed but pending finalization — the upstream tool BLOCKs
-(annotations_hmms) had to settle first before the column shape could
-be locked in.
+Operational. All three scripts are implemented. Script 002
+(`build_evidence_table.py`) pivots the long-format standardized annotation
+database (consumed from `annotations_hmms/output_to_input/`) into one wide
+per-protein evidence table per species, augmented with the full DeepLoc
+probability vector. Latest run: `workflow-RUN_1-build_evidence_table`
+(70 species).
 
 ## Naming Note
 
-This unit is named `BLOCK_secretome_evidence_table` but is logically
-STEP_1 — its output is the required input to `STEP_2-filter_secretome`.
-Per §41 + memory `feedback_block_vs_step_semantics`, sequential-dependency
-units should be named `STEP_*`. Renaming is out of scope for the docs
-pass; flagged in the subproject AI_GUIDE for future cleanup.
+This unit is named `STEP_1-build_evidence_table` because its output is the
+required input to `STEP_2-filter_secretome` — a sequential dependency that
+per §41 + memory `feedback_block_vs_step_semantics` calls for a `STEP_`
+prefix. It was originally scaffolded as `BLOCK_secretome_evidence_table`
+and has since been renamed to `STEP_1-build_evidence_table`.
 
 ## See Also
 

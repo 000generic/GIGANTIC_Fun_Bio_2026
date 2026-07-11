@@ -720,6 +720,61 @@ class GIGANTICServer:
             font-weight: 700;
             letter-spacing: 1px;
         }
+
+        .methods-panel {
+            background-color: #FFFFFF;
+            border: 4px solid #000000;
+            margin: 0 0 30px 0;
+        }
+        .methods-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background-color: #000000;
+            padding: 12px 18px;
+        }
+        .methods-title {
+            color: #FFFFFF;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            font-size: 16px;
+        }
+        .methods-download {
+            padding: 6px 12px;
+            border: 2px solid #FFFFFF;
+            background-color: #000000;
+            color: #FFFFFF;
+            font-size: 12px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .methods-download:hover { background-color: #FF007F; border-color: #FF007F; }
+        .methods-panel summary {
+            cursor: pointer;
+            padding: 12px 18px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-size: 13px;
+            color: #000000;
+            background-color: #E8E8E8;
+            border-bottom: 2px solid #000000;
+        }
+        .methods-panel summary:hover { color: #FF007F; }
+        .methods-panel pre {
+            margin: 0;
+            padding: 18px;
+            max-height: 500px;
+            overflow: auto;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 12.5px;
+            line-height: 1.45;
+            color: #000000;
+            background-color: #FFFFFF;
+            white-space: pre;
+        }
 """
 
     def _page_shell( self, title: str, body_inner: str ) -> str:
@@ -776,6 +831,53 @@ class GIGANTICServer:
     def _home_link_html( self, position: str = 'top' ) -> str:
         # HOME links retired — the breadcrumb bar already links back to "GIGANTIC DATA".
         return ''
+
+    # ---- Subproject methods document ----
+
+    def _methods_file_for( self, subproject_name: str ) -> Optional[ Path ]:
+        """
+        Return the path to a subproject's served methods document, if present.
+
+        Convention: subprojects/<sp>/methods-<sp>.txt committed at the subproject
+        root (NOT inside upload_to_server/). Only subprojects in the configured
+        allowlist are eligible (guards the /methods/ route against traversal).
+        """
+        if subproject_name not in self.config.subproject_order:
+            return None
+        candidate = self.subprojects_dir / subproject_name / f"methods-{subproject_name}.txt"
+        try:
+            if candidate.is_file():
+                return candidate
+        except OSError:
+            return None
+        return None
+
+    def _methods_panel_html( self, subproject_name: str ) -> str:
+        """
+        Render the subproject methods document as a panel at the TOP of the
+        subproject page (expanded, scrollable) with a download link. Returns ''
+        when the subproject has no methods-<sp>.txt.
+        """
+        methods_path = self._methods_file_for( subproject_name )
+        if methods_path is None:
+            return ''
+        try:
+            text = methods_path.read_text( encoding = 'utf-8', errors = 'replace' )
+        except OSError:
+            return ''
+        download_url = '/methods/' + urllib.parse.quote( subproject_name )
+        return f"""
+        <div class="methods-panel">
+            <div class="methods-head">
+                <span class="methods-title">Methods</span>
+                <a class="methods-download" href="{download_url}">Download .txt</a>
+            </div>
+            <details open>
+                <summary>{htmllib.escape( methods_path.name )} &mdash; click to collapse</summary>
+                <pre>{htmllib.escape( text )}</pre>
+            </details>
+        </div>
+"""
 
     # ---- Landing page ----
 
@@ -863,6 +965,13 @@ class GIGANTICServer:
         # Optional folder descriptor (subtitle) from the __DIR__ sidecar row
         if node.description:
             body_parts.append( f'<div class="dir-subtitle">{htmllib.escape( node.description )}</div>' )
+
+        # Subproject methods document, served at the TOP of the subproject page
+        # (methods-<subproject>.txt at the subproject root, if present).
+        if len( segments ) == 1:
+            methods_html = self._methods_panel_html( segments[ 0 ] )
+            if methods_html:
+                body_parts.append( methods_html )
 
         # Partition children into subdirs and files
         subdirs = [ child for child in node.children.values() if not child.is_file ]
@@ -1207,6 +1316,33 @@ def make_request_handler( server_instance: GIGANTICServer ):
                             self.wfile.write( chunk )
                         except ( BrokenPipeError, ConnectionResetError ):
                             return
+                return
+
+            # Subproject methods document (subprojects/<sp>/methods-<sp>.txt)
+            if path.startswith( '/methods/' ):
+                raw_segments = [ p for p in path[ len( '/methods/' ): ].split( '/' ) if p ]
+                if len( raw_segments ) != 1:
+                    self._write_html( server_instance.generate_404_page(), 404 )
+                    return
+                subproject_name = urllib.parse.unquote( raw_segments[ 0 ] )
+                methods_path = server_instance._methods_file_for( subproject_name )
+                if methods_path is None:
+                    self._write_html( server_instance.generate_404_page(), 404 )
+                    return
+                try:
+                    data = methods_path.read_bytes()
+                except OSError:
+                    self._write_html( server_instance.generate_404_page(), 404 )
+                    return
+                self.send_response( 200 )
+                self.send_header( 'Content-type', 'text/plain; charset=utf-8' )
+                self.send_header( 'Content-Length', str( len( data ) ) )
+                self.send_header( 'Content-Disposition', f'attachment; filename="{methods_path.name}"' )
+                self.end_headers()
+                try:
+                    self.wfile.write( data )
+                except ( BrokenPipeError, ConnectionResetError ):
+                    return
                 return
 
             # Drill-down directory page

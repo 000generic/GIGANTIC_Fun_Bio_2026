@@ -70,8 +70,8 @@ with `parallelism_mode: local` is the natural choice.
 |-------|-------|----------|
 | `clade '...' not found in mapping file` (001) | `bilateria_clade_id_name` / `metazoa_clade_id_name` / `clade_reference_structure` wrong | Check `awk -F'\t' '$2 ~ /^C103/' <mappings>` resolves a row |
 | `orthogroups file not found` (001/003) | `inputs.orthogroups_file` wrong/empty | Verify `orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv` |
-| `annogroup membership file not found` (003) | a `annogroup_subtypes` entry has no exposed membership file | Verify the OCL block exposed `1_ai-<structure>_annogroups-<subtype>.tsv` (see OCL block AI_GUIDE) |
-| `annogroup all-types summary not found` (003) | `annogroups_dir`/`reference_structure` wrong | `ls <annogroups_dir>/<reference_structure>/` |
+| `annogroup membership file not found` (003) | annogroups subproject not run, or `annogroups_dir` wrong | Verify `2_ai-<source>-annogroup_membership.tsv` exists under `<annogroups_dir>/<species_set>/<source>/` (see annogroups subproject) |
+| `annogroup map not found` (003) | `annogroups_dir`/`species_set`/`source` wrong | `ls <annogroups_dir>/<species_set>/<source>/` |
 | validation FAIL (004) | class/arithmetic/referential mismatch | Read `4-output/4_ai-validation_report.txt`; investigate the offending table |
 
 ## Diagnostic commands
@@ -102,11 +102,11 @@ bash RUN-workflow.sh   # fresh, no -resume
 An end-to-end run (2026-06-09) produced: 202,994 orthogroups classified
 (121,403 bilaterian_only / 12,200 mixed_with_bilaterian / 31,092
 non_bilaterian_metazoan [qualifying] / 38,299 non_metazoan_only); Table 2 =
-31,092 rows; 73,954 annogroups read (single+combo) → 3,214 kept; validation PASS.
+31,092 rows; 73,954 annogroups read (feature+combination+architecture+absent) → 3,214 kept; validation PASS.
 Treat as an order-of-magnitude sanity reference, not a guarantee.
 
 ## See also
 
 - [`../README.md`](../README.md) — runbook + I/O
 - [`../../AI_GUIDE.md`](../../AI_GUIDE.md) — output table schema + join model
-- [`../../../AI_GUIDE.md`](../../../AI_GUIDE.md) — integrator join model + OCL membership exposure note
+- [`../../../AI_GUIDE.md`](../../../AI_GUIDE.md) — integrator join model + annogroups subproject inputs

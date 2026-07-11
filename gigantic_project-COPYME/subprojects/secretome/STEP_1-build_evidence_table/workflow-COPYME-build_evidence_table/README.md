@@ -8,11 +8,11 @@ Human:   Eric Edsinger
 
 ## Where this fits
 
-- Parent BLOCK: [`../AI_GUIDE.md`](../AI_GUIDE.md) — BLOCK_secretome_evidence_table (logically STEP_1)
+- Parent STEP: [`../AI_GUIDE.md`](../AI_GUIDE.md) — STEP_1-build_evidence_table (STEP_1; feeds STEP_2-filter_secretome)
 - Parent (subproject): [`../../README.md`](../../README.md) — secretome overview
 - This workflow's AI guide: [`ai/AI_GUIDE.md`](ai/AI_GUIDE.md)
 - Reads from: `../../../annotations_hmms/output_to_input/BLOCK_build_annotation_database/` + `INPUT_user/proteome_manifest.tsv`
-- Outputs to: `../../output_to_input/BLOCK_secretome_evidence_table/`
+- Outputs to: `../../output_to_input/STEP_1-build_evidence_table/`
 - Downstream STEP: `../../STEP_2-filter_secretome/workflow-COPYME-filter_secretome/`
 - 3 scripts (validate / build_evidence_table / `write_run_log` per §45)
 - Conda env: `aiG-secretome-build_evidence_table`
@@ -43,7 +43,7 @@ For each species in the manifest:
 - `OUTPUT_pipeline/2-output/2_ai-log-build_evidence_table_<phyloname>.log` — per-species build log
 
 After successful completion, `RUN-workflow.sh` populates
-`../../output_to_input/BLOCK_secretome_evidence_table/` with stable symlinks
+`../../output_to_input/STEP_1-build_evidence_table/` with stable symlinks
 to each per-species TSV for downstream subprojects.
 
 ## How to run

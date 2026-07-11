@@ -38,10 +38,14 @@ filters by the orthogroups' bilaterian / non-bilaterian species composition.
 
 ### Definitions
 
-- **Annogroup**: a set of proteins sharing an annotation pattern from one database
-  (here pfam). Subtype `single` = exactly one pfam; `combo` = identical multi-pfam
-  architecture. `zero` (no pfam) is **excluded** by default. Produced by
-  `ocl_phylogenetic_structures/BLOCK_annotations_X_ocl` (`run_label=species70_pfam`).
+- **Annogroup**: a set of proteins sharing an annotation pattern from one source
+  (here pfam). Canonical types: `feature` = one pfam; `combination` = identical
+  distinct set of pfams; `architecture` = identical ordered arrangement of pfams;
+  `absent` = no pfam (the pfam-dark state row). Produced ONCE by the
+  **`annogroups` subproject** (`BLOCK_build_annogroups`); this BLOCK reads its map
+  + membership directly. For this BLOCK, `absent` is a useful pfam-dark state and
+  is INCLUDED (`annogroup_types` = feature + combination + architecture + absent);
+  `absent` is excluded only from OCL, not the integrator.
 - **Orthogroup**: a set of orthologous genes across species (from
   `orthogroups/BLOCK_orthohmm_GIGANTIC`).
 - **Species 3-way category** (from two `trees_species` clades, Bilateria
@@ -61,8 +65,7 @@ filters by the orthogroups' bilaterian / non-bilaterian species composition.
 ### Join model
 
 The annogroup↔orthogroup link is **shared member proteins** (full GIGANTIC IDs).
-Each protein belongs to exactly one annogroup (a clean `single`+`combo` partition,
-verified against real data) and at most one orthogroup. An annogroup's orthogroups
+Each protein belongs to one annogroup per type, and at most one orthogroup. An annogroup's orthogroups
 = the orthogroups its member proteins fall into. An annogroup is **kept** iff at
 least one of those orthogroups is `non_bilaterian_metazoan` (qualifying).
 
@@ -80,7 +83,7 @@ integration with no per-structure fan-out** — distinct from the sibling
 One row per **kept** annogroup. **Keep rule (user-approved)**: keep iff the
 annogroup has ≥1 `non_bilaterian_metazoan` (qualifying) orthogroup; drop every
 other annogroup (including those whose only non-bilaterian orthogroups are
-non-metazoan-unicell-only). Columns: Annogroup_ID, Subtype,
+non-metazoan-unicell-only). Columns: Annogroup_ID, Annogroup_Type,
 Annotation_Accessions, Annotation_Definitions, Annogroup_Species_Count,
 Annogroup_Member_Protein_Count, Members_With/Without_Orthogroup_Count,
 Orthogroup_Count, the four per-class counts (NonBilaterian_Metazoan /
@@ -100,16 +103,17 @@ non-bilaterian-metazoan / non-metazoan species counts, and a `Qualifies` flag �
 the shared basis for both tables (Table 2 is its `non_bilaterian_metazoan` slice;
 Table 1 uses it as the per-orthogroup class lookup).
 
-## Upstream dependency: annogroup membership exposure
+## Upstream dependency: annogroup map + membership from the annogroups subproject
 
-Table 1's join needs the per-protein annogroup `Sequence_IDs`, which the OCL
-all-types summary does **not** carry. As of 2026-06-09 the
-`BLOCK_annotations_X_ocl` workflow exposes the structure-invariant `single` +
-`combo` membership files in its `output_to_input/` (its `RUN-workflow.sh` symlink
-step was extended; existing `species70_pfam` symlinks were generated against the
-canonical RUN_02). If a future annotations-OCL run does not expose membership,
-Script 003 fails fast with a clear message. See
-`../../ocl_phylogenetic_structures/BLOCK_annotations_X_ocl/AI_GUIDE.md`.
+Table 1's join needs the per-protein annogroup `Sequence_IDs` plus per-annogroup
+type/accessions/definitions. Both are read DIRECTLY from the **`annogroups`
+subproject** at
+`../../annogroups/output_to_input/BLOCK_build_annogroups/<species_set>/<source>/`:
+the `2_ai-<source>-annogroup_map.tsv` (type, accessions, definitions) and the
+`2_ai-<source>-annogroup_membership.tsv` (member `Sequence_IDs`). There is **no
+OCL dependency** — the integrator does not read from `ocl_phylogenetic_structures`.
+If the annogroups subproject output is missing, Script 003 fails fast with a clear
+message. See `../../annogroups/BLOCK_build_annogroups/`.
 
 ## Pipeline (5 scripts + utils)
 

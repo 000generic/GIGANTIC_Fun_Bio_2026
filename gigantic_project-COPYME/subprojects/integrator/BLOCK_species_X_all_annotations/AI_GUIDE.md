@@ -52,7 +52,7 @@ key (`g_<gene>-t_<rna>-p_<protein>-n_<phyloname>`).
 | annotations_hmms | `annotations_hmms/BLOCK_build_annotation_database/annotation_databases/database_{pfam,go,panther}/` | full GIGANTIC ID (multi-row→list) | 70 |
 | annogroups | `annogroups/BLOCK_build_annogroups/<species_set>/{pfam,go,panther}/2_ai-<source>-annogroup_membership.tsv` | full GIGANTIC ID (direct) | 70 |
 | orthogroups | `orthogroups/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv` | full GIGANTIC ID (OG→members inverted) | 70 |
-| secretome | `secretome/BLOCK_secretome_evidence_table/` | full GIGANTIC ID | 70 |
+| secretome | `secretome/STEP_1-build_evidence_table/` | full GIGANTIC ID | 70 |
 | trees_gene_groups AGS | `trees_gene_groups/.../gene_groups-hugo_hgnc/STEP_1.../16_ai-ags-*.aa` | full GIGANTIC ID in FASTA headers | 2,060 groups |
 | trees_gene_families AGS | `trees_gene_families/output_to_input/<family>/STEP_1.../16_ai-ags-*.aa` | full GIGANTIC ID in FASTA headers | 76 families |
 | dark_proteomes | `dark_proteomes/BLOCK_classify_dark_proteome/dark_proteome/` | full GIGANTIC ID | 70 |

@@ -26,7 +26,8 @@
 # ============================================================================
 
 source_path	include	dest_name	display_label	file_category	description	order
+OUTPUT_pipeline/1-output/final_project_mapping.tsv	yes		Species phyloname mapping (final, with user overrides)	mapping	Authoritative per-species genus_species to phyloname mapping with user overrides applied. The canonical species identifier list for this project.	5
+OUTPUT_pipeline/1-output/unofficial_clades_report.tsv	yes		UNOFFICIAL clades report	report	Lists clade levels marked UNOFFICIAL because a user override differed from the NCBI-derived value.	8
 OUTPUT_pipeline/2-output/*_taxonomy_summary.html	yes		Taxonomy summary after user overrides (HTML)	summary	Final per-species taxonomy summary after user_phylonames.tsv overrides applied.	10
 OUTPUT_pipeline/2-output/*_taxonomy_summary.md	yes		Taxonomy summary after user overrides (markdown)	summary	Markdown version of the final per-species taxonomy summary.	20
-OUTPUT_pipeline/1-output/*_map-genus_species_X_phylonames.tsv	no		Final genus_species → phyloname mapping (with user overrides)	mapping	The authoritative phylonames mapping for the project. Downstream subprojects consume it via output_to_input/; flip to yes here only if collaborators should browse it directly.	30
 OUTPUT_pipeline/3-output/3_ai-run_log.txt	no		STEP_2 run log	log	Per-run audit log.	90

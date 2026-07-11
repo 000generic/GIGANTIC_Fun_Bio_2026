@@ -29,15 +29,31 @@ the server).
 For project-wide AI orientation, read `../AI_GUIDE.md` first. For
 canonical project conventions, see `../ai/ai_FYIs/gigantic_conventions.md`.
 
-| You need... | Section |
+## Documents in this directory
+
+These are the relevant server documents — read them alongside this guide.
+
+| Document | What it covers |
+|---|---|
+| [`README.md`](README.md) | User-facing quick start: start the server, publish data, reach it from a browser. |
+| [`Login-node-server-GUIDE.md`](Login-node-server-GUIDE.md) | **The live deployment.** How the server is run in `local` mode, detached, on `login7` for shared lab access, and **how to restart it safely** — including the `[g]` bracket-trick for stopping it. **Read this before restarting the live server** (see the callout in [Operation → Restart](#restart-the-server)). |
+| [`EXCEL_CONVERSION-GUIDE.md`](EXCEL_CONVERSION-GUIDE.md) | The on-the-fly TSV/CSV → `.xlsx` conversion offered in the web UI (refuse-and-report behavior). |
+| [`START_HERE-server_config.yaml`](START_HERE-server_config.yaml) | All server configuration (execution_mode, port, `subproject_order` allowlist, `slurm.*`). |
+| [`ai/gigantic_server.py`](ai/gigantic_server.py) | Server implementation (stdlib-only; the `ThreadingTCPServer` fix is a hard requirement — see the Login-node guide). |
+| [`ai/update_upload_to_server.py`](ai/update_upload_to_server.py) | Shared publisher helper invoked by each subproject's `RUN-update_upload_to_server.sh`. |
+| `../AI_GUIDE.md` · `../ai/ai_FYIs/gigantic_conventions.md` | Project-wide AI orientation and canonical conventions. |
+
+| You need... | Section / Document |
 |---|---|
 | What the server is + architecture | [Architecture](#architecture) |
 | Start / stop / restart the server | [Operation](#operation) |
+| **Restart the LIVE (login-node) server safely** | [`Login-node-server-GUIDE.md`](Login-node-server-GUIDE.md) |
 | Post-start UX: SSH tunnel + URL in chat | [Post-start: tell the user how to reach the server](#post-start-tell-the-user-how-to-reach-the-server) |
 | Diagnose a problem | [Troubleshooting](#troubleshooting) |
 | Publish a subproject's outputs to the server | [Publishing workflow](#publishing-workflow) |
 | Add a new subproject to the served set | [Adding a new subproject to the server](#adding-a-new-subproject-to-the-server) |
 | Server config reference | [Configuration parsing](#configuration-parsing) |
+| On-the-fly Excel (.xlsx) conversion | [`EXCEL_CONVERSION-GUIDE.md`](EXCEL_CONVERSION-GUIDE.md) |
 
 ---
 
@@ -115,6 +131,16 @@ the user invokes.
 - **SLURM mode**: `scancel <job-id>` (find it with `squeue -u $USER | grep gigantic`)
 
 ### Restart the server
+
+> **⚠️ The live deployment runs in `local` mode, detached, on `login7` (not
+> SLURM).** To restart THAT server, follow
+> [`Login-node-server-GUIDE.md`](Login-node-server-GUIDE.md) exactly —
+> especially the `[g]` bracket-trick for stopping it. A plain
+> `pkill -f gigantic_server.py` (or `pgrep -f ...`) run over ssh also matches
+> the ssh shell executing the command and kills it, so the old server dies, the
+> restart step never runs, and no logfile is even created (silent outage). The
+> generic stop/start below describes a foreground or SLURM server, not the
+> login-node deployment.
 
 Stop, then `bash RUN-start_server.sh` again. Restart is only needed for:
 

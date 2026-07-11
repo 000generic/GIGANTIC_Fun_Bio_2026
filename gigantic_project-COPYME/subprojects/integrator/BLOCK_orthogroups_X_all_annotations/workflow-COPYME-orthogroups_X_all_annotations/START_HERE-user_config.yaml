@@ -1,0 +1,137 @@
+# ============================================================================
+# WORKFLOW CONFIGURATION - Edit this file before running
+# ============================================================================
+#
+# This is the main configuration file for this workflow.
+# Review and update the settings below for your project, then run:
+#
+#     bash RUN-workflow.sh
+#
+# ============================================================================
+#
+# GIGANTIC integrator - BLOCK_orthogroups_X_all_annotations
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 10
+# Human: Eric Edsinger
+#
+# Builds ONE table with one row per OrthoHMM orthogroup, integrating SEVEN
+# annotation types across all member sequences of each orthogroup. For every
+# annotation type the table reports FOUR columns:
+#     <Type>_Species_Count      non-redundant count of species (Genus_species)
+#                               among member sequences carrying >=1 annotation
+#     <Type>_Sequence_Count     count of member sequences carrying >=1 annotation
+#     <Type>_Identifiers        comma-delimited non-redundant identifiers
+#     <Type>_Names              ' // '-delimited names aligned to identifiers
+#
+# Annotation types (in output column order):
+#     Pfam, GO, PANTHER            (raw per-sequence HMM annotations)
+#     Gene_Families, Gene_Groups   (membership by presence in curated AGS FASTAs)
+#     Dark_Proteome                (per-sequence DARK/ANNOTATED status; the Status
+#                                   values are the identifiers, the fired
+#                                   annotation-source axes are the names)
+#     Hotspots                     (genomic hotspot regions; Hotspot_IDs are the
+#                                   identifiers; no separate human name; NA for
+#                                   the 6 species without gene coordinates)
+#
+# The table ALSO carries species-tree deconvolution columns (like the leonid
+# block): one column per non-redundant clade/species across structures
+# 001/003/031/032, each cell = count of the orthogroup's member sequences within
+# that clade.
+
+# Run identification — names the output_to_input subdirectory for this run.
+run_label: "species70_orthogroups_X_all_annotations"
+
+# Species set identifier (must match the upstream subprojects)
+species_set_name: "species70"
+
+# Input paths (relative to this workflow directory) --------------------------
+inputs:
+  # Orthogroups spine. Headerless TSV: OG_ID then tab-delimited member full
+  # GIGANTIC IDs. Each member's species comes from its -n_<phyloname>.
+  # Canonical species70 integrator input (202,994 orthogroups, 1,375,926 members).
+  orthogroups_file: "../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv"
+
+  # --- HMM annotations (raw per-sequence) ---
+  # Pfam + PANTHER: one file per species under <dir>/<source>/<source>-<phyloname>.tsv
+  #   columns include Protein_Identifier, Accession, Description.
+  interproscan_parsed_dir: "../../../annotations_hmms/output_to_input/BLOCK_interproscan_parsed"
+  # GO: raw combined InterProScan results, one file per species,
+  #   <dir>/<phyloname>_interproscan_results.tsv (NO header). GO terms are in
+  #   column index 13, pipe-delimited "GO:NNNNNNN(Origin)" tokens.
+  interproscan_raw_dir: "../../../annotations_hmms/output_to_input/BLOCK_interproscan"
+  # GO id -> name lookup (header: GO_ID, GO_Name, GO_Namespace, Is_Obsolete, Is_Primary_ID)
+  go_id_to_name: "../../../annotations_hmms/output_to_input/GO_reference/go_id_to_name.tsv"
+
+  # --- Gene families / gene groups (membership via AGS FASTA headers) ---
+  # Each family: <gene_families_dir>/<family_slug>/**/16_ai-ags-*.aa ; FASTA
+  #   headers that start with g_ ...-n_<phyloname> are member sequence IDs (the
+  #   join key). Headers starting with rgs_ are reference seqs and are ignored.
+  gene_families_dir: "../../../trees_gene_families/output_to_input"
+  # Gene groups: <gene_groups_dir>/gene_groups-*/**/gene_group-<name>/**/16_ai-ags-*.aa
+  gene_groups_dir: "../../../trees_gene_groups/output_to_input"
+  # HGNC gene-group id/name metadata (Gene_Group_ID gg<N>, Gene_Group_Name, Sanitized_Name)
+  gene_groups_hgnc_metadata: "../../../trees_gene_groups/gene_groups-hugo_hgnc/STEP_0-hgnc_gene_groups/workflow-RUN_1-hgnc_gene_groups/OUTPUT_pipeline/2-output/2_ai-gene_group_metadata.tsv"
+
+  # --- Dark proteome (native per-sequence: DARK / ANNOTATED) ---
+  # One file per species: <dir>/3_ai-dark_proteome-<Genus_species>.tsv
+  #   columns: Full_GIGANTIC_Gene_ID (join key), Status, Annotation_Sources_CSV.
+  # NOTE: the dark_proteomes output_to_input currently exposes only 1 species;
+  #   the full species70 set lives in this RUN's OUTPUT_pipeline/3-output. See
+  #   the handoff doc "known discrepancies".
+  dark_proteome_dir: "../../../dark_proteomes/BLOCK_classify_dark_proteome/workflow-RUN_1-classify_dark_proteome-species70/OUTPUT_pipeline/3-output"
+
+  # --- Hotspots (per-region; invert to (Genus_species, Source_Gene_ID)) ---
+  # One file per species (64/70): <dir>/3_ai-hotspots-<Genus_species>.tsv
+  #   columns: Hotspot_ID, Member_Source_Gene_IDs (comma-delimited bare gene ids).
+  #   Join key is (Genus_species, Source_Gene_ID) where Source_Gene_ID is the
+  #   bare g_ field of the member ID. Species with no file -> NA.
+  hotspots_dir: "../../../hotspots/output_to_input/BLOCK_identify_hotspots/hotspots"
+
+  # --- Species-tree deconvolution ---
+  clade_species_mappings: "../../../trees_species/output_to_input/BLOCK_permutations_and_features/Species_Clade_Species_Mappings/9_ai-clade_species_mappings-all_structures.tsv"
+  deconvolution_structures:
+    - "structure_001"
+    - "structure_003"
+    - "structure_031"
+    - "structure_032"
+
+# HMM annotation sources to aggregate (raw per-sequence), IN OUTPUT COLUMN ORDER.
+hmm_annotation_sources:
+  - "pfam"
+  - "go"
+  - "panther"
+
+# Output configuration
+output:
+  #   OUTPUT_pipeline/1-output/  the integrated table (headline deliverable)
+  #   OUTPUT_pipeline/2-output/  validation report
+  base_dir: "OUTPUT_pipeline"
+
+# =============================================================================
+# Computational Resources
+# =============================================================================
+# The build holds the protein->orthogroup map (~1.4M members) plus per-sequence
+# lookups for all seven annotation types (Pfam/GO/PANTHER raw files, inverted AGS
+# for ~76 families + ~2,060 gene groups, dark proteome, hotspots). Give it
+# generous memory and time (heavier than the leonid block).
+cpus: 4
+memory_gb: 64
+time_hours: 12
+
+# =============================================================================
+# Execution Mode  ("local" runs the driver here; "slurm" self-submits it)
+# =============================================================================
+execution_mode: "slurm"
+
+# SLURM settings (only used when execution_mode is "slurm")
+slurm_account: "moroz"
+slurm_qos: "moroz"
+
+# =============================================================================
+# Parallelism Mode  (this BLOCK has no fan-out; "local" is the natural choice)
+# =============================================================================
+parallelism_mode: "local"
+
+# =============================================================================
+# Resume from cached NextFlow work directory
+# =============================================================================
+resume: false

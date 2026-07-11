@@ -15,7 +15,8 @@ Integrates **pfam annogroups** with **orthogroups**, focused on
 - Parent (BLOCK): [`../README.md`](../README.md) · [`../AI_GUIDE.md`](../AI_GUIDE.md)
 - This workflow's AI guide: [`ai/AI_GUIDE.md`](ai/AI_GUIDE.md)
 - Inputs (all from upstream `output_to_input/`, set in `START_HERE-user_config.yaml`):
-  pfam annogroups (`ocl_phylogenetic_structures/BLOCK_annotations_X_ocl`),
+  pfam annogroups — map + membership read directly from the `annogroups` subproject
+  (`annogroups/output_to_input/BLOCK_build_annogroups`),
   orthogroups (`orthogroups/BLOCK_orthohmm_GIGANTIC`),
   Bilateria + Metazoa species sets (`trees_species`)
 - Outputs: `../../../output_to_input/BLOCK_annotations_X_orthogroups/<run_label>/`
@@ -42,8 +43,7 @@ orthogroups present in non-bilaterian metazoans but absent from bilaterians?*
 ## Join model
 
 The annogroup↔orthogroup link is **shared member proteins** (full GIGANTIC IDs).
-Each protein belongs to exactly one annogroup (a clean single+combo partition) and
-at most one orthogroup. Member species are split three ways using two
+Each protein belongs to one annogroup per type, and at most one orthogroup. Member species are split three ways using two
 `trees_species` clades (Bilateria `C103` ⊂ Metazoa `C082`): **bilaterian** (in
 Bilateria), **non-bilaterian metazoan** (in Metazoa, not Bilateria), **non-metazoan**
 (not in Metazoa; unicellular outgroups). A **qualifying** orthogroup has zero
@@ -57,7 +57,7 @@ per-structure fan-out.
 ```bash
 cd workflow-COPYME-annotations_X_orthogroups   # (copy to workflow-RUN_N for a real run)
 # 1. Edit START_HERE-user_config.yaml: run_label, species_set_name,
-#    annogroup_subtypes, execution_mode (+ slurm_account/slurm_qos if slurm),
+#    annogroup_types, execution_mode (+ slurm_account/slurm_qos if slurm),
 #    input paths, bilateria_clade_id_name + metazoa_clade_id_name
 # 2. Run:
 bash RUN-workflow.sh
@@ -67,8 +67,8 @@ bash RUN-workflow.sh
 
 | | Path | Notes |
 |---|---|---|
-| In | `inputs.annogroups_dir/<reference_structure>/1_ai-*-annogroups-{single,combo}.tsv` | annogroup member `Sequence_IDs` |
-| In | `inputs.annogroups_dir/<reference_structure>/4_ai-*-complete_ocl_summary-all_types.tsv` | pfam accessions/definitions |
+| In | `inputs.annogroups_dir/<species_set>/<source>/2_ai-<source>-annogroup_membership.tsv` | annogroup member `Sequence_IDs` (from the annogroups subproject) |
+| In | `inputs.annogroups_dir/<species_set>/<source>/2_ai-<source>-annogroup_map.tsv` | annogroup type + pfam accessions/definitions (from the annogroups subproject) |
 | In | `inputs.orthogroups_file` | headerless orthogroup membership |
 | In | `inputs.clade_species_mappings` (+ `bilateria_clade_id_name`, `metazoa_clade_id_name`) | Bilateria + Metazoa species sets |
 | Out | `OUTPUT_pipeline/1-output/1_ai-orthogroups-species_composition.tsv` | all orthogroups classified |

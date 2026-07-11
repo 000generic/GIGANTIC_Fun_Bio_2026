@@ -10,7 +10,7 @@
  *
  * Scripts:
  *   001: Validate species70 manifest + emit canonical alphabetical phyloname column order
- *   002: Count orthogroups from orthogroups/BLOCK_orthohmm
+ *   002: Count orthogroups from orthogroups/BLOCK_orthohmm_GIGANTIC
  *   003: Count HGNC gene group homologs from trees_gene_groups
  *   004: Count curated gene family homologs from trees_gene_families
  *   005: Write run log
@@ -74,6 +74,7 @@ process validate_species70_manifest {
     mkdir -p 1-output
 
     python3 ${projectDir}/scripts/001_ai-python-validate_species70_manifest.py \\
+        --workflow-root ${projectDir}/.. \\
         --phyloname-map ${params.inputs.species70_phyloname_map} \\
         --output-dir 1-output
     """
@@ -100,6 +101,7 @@ process count_orthogroups_orthohmm {
     mkdir -p 2-output
 
     python3 ${projectDir}/scripts/002_ai-python-count-orthogroups_orthohmm.py \\
+        --workflow-root ${projectDir}/.. \\
         --species-order ${species_order} \\
         --orthogroups-dir ${params.inputs.orthogroups_orthohmm_dir} \\
         --output-dir 2-output
@@ -127,6 +129,7 @@ process count_trees_gene_groups {
     mkdir -p 3-output
 
     python3 ${projectDir}/scripts/003_ai-python-count-trees_gene_groups.py \\
+        --workflow-root ${projectDir}/.. \\
         --species-order ${species_order} \\
         --gene-groups-dir ${params.inputs.trees_gene_groups_dir} \\
         --output-dir 3-output
@@ -154,6 +157,7 @@ process count_trees_gene_families {
     mkdir -p 4-output
 
     python3 ${projectDir}/scripts/004_ai-python-count-trees_gene_families.py \\
+        --workflow-root ${projectDir}/.. \\
         --species-order ${species_order} \\
         --gene-families-dir ${params.inputs.trees_gene_families_dir} \\
         --output-dir 4-output

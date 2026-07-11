@@ -97,7 +97,7 @@ inputs:
   orthogroups_file: "../../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/orthogroups_gigantic_ids.tsv"
 
   # secretome evidence tables. Per-species: <phyloname>_evidence_table.tsv
-  secretome_dir: "../../../secretome/output_to_input/BLOCK_secretome_evidence_table"
+  secretome_dir: "../../../secretome/output_to_input/STEP_1-build_evidence_table"
 
   # dark proteome classification. Per-species: 3_ai-dark_proteome-<Genus_species>.tsv
   dark_dir: "../../../dark_proteomes/output_to_input/BLOCK_classify_dark_proteome/dark_proteome"

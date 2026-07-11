@@ -51,7 +51,7 @@ created on-demand from `ai/conda_environment.yml`.
 | dark proteome (per species) | `dark_proteomes/output_to_input/BLOCK_classify_dark_proteome/dark_proteome/` |
 | hotspots (per species) | `hotspots/output_to_input/BLOCK_identify_hotspots/hotspots/` |
 | secretome filtered (per species) | `secretome/output_to_input/STEP_2-filter_secretome/` |
-| secretome evidence (per species) | `secretome/output_to_input/BLOCK_secretome_evidence_table/` |
+| secretome evidence (per species) | `secretome/output_to_input/STEP_1-build_evidence_table/` |
 | structures to integrate | `INPUT_user/structure_manifest.tsv` |
 
 ## Outputs

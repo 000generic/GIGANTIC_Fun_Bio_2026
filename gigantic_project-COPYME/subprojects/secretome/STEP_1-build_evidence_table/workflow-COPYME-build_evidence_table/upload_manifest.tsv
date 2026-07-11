@@ -1,0 +1,30 @@
+# GIGANTIC upload_manifest.tsv — secretome / STEP_1-build_evidence_table
+# ============================================================================
+# Publishes the per-species per-protein EVIDENCE TABLES produced by this
+# workflow. Each evidence table is one wide TSV per species: one row per
+# protein in the canonical proteome, with per-database annotation columns
+# (Pfam, DeepLoc, MetaPredict, SignalP fast/slow, TMBed by default) pivoted
+# out of the long-format standardized annotation database, augmented with the
+# full DeepLoc per-compartment probability vector.
+#
+# These tables are the INPUT that STEP_2-filter_secretome consumes to call
+# secreted proteins; they are published here so collaborators can inspect the
+# raw per-protein evidence behind each secretome call.
+#
+# Mechanics: source_path is relative to the workflow-RUN_* directory holding
+# this manifest. The shared helper (../../server/ai/update_upload_to_server.py,
+# invoked by the subproject-root RUN-update_upload_to_server.sh) publishes the
+# newest RUN per step into
+# upload_to_server/STEP_1-build_evidence_table/workflow-RUN_*/.
+#
+# This is a COPYME template; it travels with the workflow into each
+# workflow-RUN_* dir, where the helper picks it up.
+# ============================================================================
+
+source_path	include	dest_name	display_label	file_category	description	order	dir_label
+#
+# ----- Validated species proteome manifest (script 001) -----
+OUTPUT_pipeline/1-output/1_ai-validated_manifest.tsv	yes		Validated proteome manifest	documentation	The validated species proteome manifest driving this run: species_name, proteome_path, phyloname for each of the 70 species.	10	manifest
+#
+# ----- Per-species evidence tables (script 002; one per species, 70 total) -----
+OUTPUT_pipeline/2-output/*_evidence_table.tsv	yes		Per-protein evidence table	data	Wide per-protein annotation evidence table for one species: one row per proteome protein with per-database hit counts, annotation identifiers/details, parsed SignalP/TMBed/MetaPredict calls, and the full DeepLoc localization probability vector.	20	evidence tables

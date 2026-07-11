@@ -23,11 +23,12 @@ subprojects' outputs into integrated tables.
   - [`BLOCK_annotations_X_orthogroups/AI_GUIDE.md`](BLOCK_annotations_X_orthogroups/AI_GUIDE.md) — pfam annogroups × orthogroups, non-bilaterian-metazoan focus (structure-independent; reads annogroup map + membership directly from the `annogroups` subproject)
   - [`BLOCK_species_X_all_annotations/AI_GUIDE.md`](BLOCK_species_X_all_annotations/AI_GUIDE.md) — per-species proteome (spine = one row per protein) × every per-gene annotation + per-structure orthogroup/annogroup OCL columns
   - [`BLOCK_ambiguous_nodes_X_annogroups/AI_GUIDE.md`](BLOCK_ambiguous_nodes_X_annogroups/AI_GUIDE.md) — annogroups species-tree deconvolution collapsed to ONLY the ambiguous nodes (clades present in some but not all structures), in one/some/all structure scopes, per source (pfam, go, panther); pure column projection of the annogroups deconvolution (`ambiguous_nodes_X_*` series, first member)
+  - [`BLOCK_orthogroups_X_leonid_08july2026/AI_GUIDE.md`](BLOCK_orthogroups_X_leonid_08july2026/AI_GUIDE.md) — one row per OrthoHMM orthogroup × non-redundant Pfam/GO/PANTHER annotations (from annogroup feature membership) × species-tree deconvolution (per-clade/per-species member-sequence counts across structures 001, 003, 031, 032); a Leonid request (structure-independent)
 - Reads FROM (per `BLOCK_orthogroups_ocl_X_features`):
   - `../ocl_phylogenetic_structures/output_to_input/BLOCK_orthogroups_X_ocl/<run_label>/` (OCL orthogroup summary + path_states, per structure)
   - `../dark_proteomes/output_to_input/BLOCK_classify_dark_proteome/dark_proteome/`
   - `../hotspots/output_to_input/BLOCK_identify_hotspots/hotspots/`
-  - `../secretome/output_to_input/STEP_2-filter_secretome/` (+ `BLOCK_secretome_evidence_table/`)
+  - `../secretome/output_to_input/STEP_2-filter_secretome/` (+ `STEP_1-build_evidence_table/`)
 - Outputs TO: `output_to_input/BLOCK_orthogroups_ocl_X_features/<run_label>/`
 - Downstream consumers: comparative analyses, `upload_to_server/` (browsable by Eric + Leonid Moroz)
 
@@ -43,6 +44,7 @@ subprojects' outputs into integrated tables.
 | annogroups×orthogroups BLOCK concepts | `BLOCK_annotations_X_orthogroups/AI_GUIDE.md` |
 | per-species all-annotations BLOCK concepts | `BLOCK_species_X_all_annotations/AI_GUIDE.md` |
 | ambiguous-nodes × annogroups BLOCK concepts | `BLOCK_ambiguous_nodes_X_annogroups/AI_GUIDE.md` |
+| orthogroups × Leonid table BLOCK concepts | `BLOCK_orthogroups_X_leonid_08july2026/AI_GUIDE.md` |
 | Running a BLOCK | `BLOCK_<name>/workflow-COPYME-*/ai/AI_GUIDE.md` |
 
 ## What integrator does

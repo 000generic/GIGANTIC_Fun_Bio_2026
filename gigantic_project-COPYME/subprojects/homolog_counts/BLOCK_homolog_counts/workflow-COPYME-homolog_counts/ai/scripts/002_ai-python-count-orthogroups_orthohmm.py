@@ -101,9 +101,29 @@ def parse_g_header( header_content ):
     return gene_id, protein_id, phyloname
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config paths are relative to the workflow directory (where
+    START_HERE-user_config.yaml lives). NextFlow runs each task in a work/
+    subdir, so a bare relative path would resolve against the wrong CWD.
+    Anchor relative paths against workflow_root (an absolute path passed by
+    main.nf as ${projectDir}/..); leave already-absolute paths untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description = 'Count orthogroups per species from BLOCK_orthohmm output'
+    )
+    parser.add_argument(
+        '--workflow-root',
+        required = True,
+        help = 'Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --orthogroups-dir is resolved against this'
     )
     parser.add_argument(
         '--species-order',
@@ -113,7 +133,7 @@ def parse_arguments():
     parser.add_argument(
         '--orthogroups-dir',
         required = True,
-        help = 'Path to orthogroups/output_to_input/BLOCK_orthohmm (contains gene_count_gigantic_ids.tsv)'
+        help = 'Path to orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC (contains gene_count_gigantic_ids.tsv)'
     )
     parser.add_argument(
         '--output-dir',
@@ -212,7 +232,7 @@ def main():
     # Locate upstream gene_count file
     # ========================================================================
 
-    input_orthogroups_dir = Path( args.orthogroups_dir )
+    input_orthogroups_dir = resolve_against_workflow_root( args.orthogroups_dir, args.workflow_root )
     input_gene_count_path = input_orthogroups_dir / 'gene_count_gigantic_ids.tsv'
     input_orthogroups_membership_path = input_orthogroups_dir / 'orthogroups_gigantic_ids.tsv'
 

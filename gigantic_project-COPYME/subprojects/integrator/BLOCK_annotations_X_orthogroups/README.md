@@ -16,7 +16,7 @@ on shared member proteins and focused on **non-bilaterian-metazoan** orthogroups
 - Parent (subproject): [`../README.md`](../README.md) · [`../AI_GUIDE.md`](../AI_GUIDE.md)
 - This BLOCK's AI guide: [`AI_GUIDE.md`](AI_GUIDE.md)
 - Workflow: [`workflow-COPYME-annotations_X_orthogroups/`](workflow-COPYME-annotations_X_orthogroups/)
-- Inputs: pfam annogroups (`ocl_phylogenetic_structures/BLOCK_annotations_X_ocl`), orthogroups (`orthogroups/BLOCK_orthohmm_GIGANTIC`), Bilateria species set (`trees_species`) — see AI guide
+- Inputs: pfam annogroups — map + membership read directly from the `annogroups` subproject (`annogroups/output_to_input/BLOCK_build_annogroups`), orthogroups (`orthogroups/BLOCK_orthohmm_GIGANTIC`), Bilateria species set (`trees_species`) — see AI guide
 - Outputs: `../output_to_input/BLOCK_annotations_X_orthogroups/<run_label>/`
 
 ## What you get
@@ -49,7 +49,7 @@ integration is **structure-independent** (no per-structure fan-out).
 
 ```bash
 cd workflow-COPYME-annotations_X_orthogroups   # (copy to workflow-RUN_N for a real run)
-# 1. Edit START_HERE-user_config.yaml: run_label, annogroup_subtypes,
+# 1. Edit START_HERE-user_config.yaml: run_label, annogroup_types,
 #    execution_mode (+ slurm_account/slurm_qos if slurm), input paths
 # 2. Run:
 bash RUN-workflow.sh

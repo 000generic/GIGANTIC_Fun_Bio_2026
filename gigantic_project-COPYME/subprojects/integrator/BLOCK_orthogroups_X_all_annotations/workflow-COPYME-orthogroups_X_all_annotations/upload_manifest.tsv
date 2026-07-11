@@ -1,0 +1,24 @@
+# GIGANTIC upload_manifest.tsv — integrator / BLOCK_orthogroups_X_all_annotations
+# ============================================================================
+# Publishes the per-orthogroup all-annotations table (+ validation report).
+# Source globs are relative to this manifest's directory (workflow-RUN_* root).
+#
+# Build with (from the integrator subproject root):
+#   bash RUN-update_upload_to_server.sh
+# (which calls ../../server/ai/update_upload_to_server.py --subproject-dir .)
+#
+# Published files land at:
+#   ../../upload_to_server/BLOCK_orthogroups_X_all_annotations/workflow-RUN_*-orthogroups_X_all_annotations/N-output/
+#
+# This is a COPYME template (single source of truth). The discovery helper
+# ignores manifests in workflow-COPYME-* dirs; copy this file into the canonical
+# workflow-RUN_* dir for it to publish (per gigantic_conventions §38/§39).
+# ============================================================================
+
+source_path	include	dest_name	display_label	file_category	description	order	dir_label
+#
+# ----- Headline deliverable: the per-orthogroup all-annotations table -----
+OUTPUT_pipeline/1-output/1_ai-orthogroups_X_all_annotations.tsv	yes		Orthogroups X all annotations table	data	One row per OrthoHMM orthogroup. Fixed columns (Orthogroup_ID, comma-delimited member sequence IDs, member count, singleton flag) then FOUR columns for each of seven annotation types (Pfam, GO, PANTHER, Gene_Families, Gene_Groups, Dark_Proteome, Hotspots): non-redundant species count and sequence count of members carrying that annotation, comma-delimited non-redundant identifiers, and ' // '-delimited names aligned to the identifiers (Hotspots names are intentionally blank). Followed by a species-tree deconvolution — one column per non-redundant clade/species across structures 001, 003, 031, 032 giving the count of member sequences within that clade.	10	orthogroup table
+#
+# ----- QC: validation report -----
+OUTPUT_pipeline/2-output/2_ai-validation_report.txt	yes		Validation report	qc	Fail-fast validation cross-checks (row count vs input orthogroups, member-count vs sequence-ID count, singleton flag, deconvolution completeness where the species columns sum to the member count and root clades equal it, per-type count ranges and coverage consistency, and identifier/name alignment). Status PASS means every cross-check held.	20	quality control

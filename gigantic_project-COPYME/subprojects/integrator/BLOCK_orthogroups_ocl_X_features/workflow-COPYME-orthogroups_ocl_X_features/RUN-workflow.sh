@@ -28,7 +28,7 @@
 #          4_ai-path_states-per_orthogroup_per_species.tsv per structure)
 #    - dark_proteomes/output_to_input/BLOCK_classify_dark_proteome/dark_proteome/
 #    - hotspots/output_to_input/BLOCK_identify_hotspots/hotspots/
-#    - secretome/output_to_input/STEP_2-filter_secretome/  (+ BLOCK_secretome_evidence_table/)
+#    - secretome/output_to_input/STEP_2-filter_secretome/  (+ STEP_1-build_evidence_table/)
 #
 # WHAT THIS DOES:
 # 1. Creates (or reuses) per-BLOCK conda env from ai/conda_environment.yml

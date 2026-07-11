@@ -28,10 +28,28 @@ from collections import Counter
 from pathlib import Path
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config-derived paths (proteome FASTA dir, annotation database dir) are
+    relative to the workflow directory. NextFlow runs each task in a work/
+    subdir, so a bare relative path would resolve against the wrong CWD. Anchor
+    relative paths against workflow_root (absolute, passed by main.nf as
+    ${projectDir}/..); leave already-absolute paths and staged NextFlow inputs
+    untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description = "Append cysteine count + pfam max-per-accession columns to filtered secretome TSV."
     )
+    parser.add_argument( "--workflow-root", required = True,
+                         help = "Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --proteome-fasta and --pfam-long-format-tsv are resolved against this." )
     parser.add_argument( "--filtered-tsv", required = True,
                          help = "Per-species filtered TSV from script 002." )
     parser.add_argument( "--proteome-fasta", required = True,
@@ -123,6 +141,11 @@ def main():
     output_dir = Path( args.output_dir ).resolve()
     output_dir.mkdir( parents = True, exist_ok = True )
 
+    # Resolve config-derived upstream paths against the workflow root so relative
+    # config paths survive NextFlow's work/ execution dirs.
+    input_proteome_fasta = resolve_against_workflow_root( args.proteome_fasta, args.workflow_root )
+    input_pfam_long_format_tsv = resolve_against_workflow_root( args.pfam_long_format_tsv, args.workflow_root )
+
     log_path = output_dir / f"{args.phyloname}_{args.run_label}_log-augment_derived.log"
     logging.basicConfig(
         level = logging.INFO,
@@ -136,12 +159,13 @@ def main():
     logger.info( "=" * 70 )
     logger.info( f"Run label:       {args.run_label}" )
     logger.info( f"Phyloname:       {args.phyloname}" )
+    logger.info( f"Workflow root:   {args.workflow_root}" )
     logger.info( f"Filtered TSV:    {args.filtered_tsv}" )
-    logger.info( f"Proteome FASTA:  {args.proteome_fasta}" )
-    logger.info( f"Pfam long-fmt:   {args.pfam_long_format_tsv}" )
+    logger.info( f"Proteome FASTA:  {input_proteome_fasta}" )
+    logger.info( f"Pfam long-fmt:   {input_pfam_long_format_tsv}" )
 
-    cys_lookup = read_proteome_cysteine_counts( Path( args.proteome_fasta ), logger )
-    pfam_max_lookup = read_pfam_max_hits_per_accession( Path( args.pfam_long_format_tsv ), logger )
+    cys_lookup = read_proteome_cysteine_counts( input_proteome_fasta, logger )
+    pfam_max_lookup = read_pfam_max_hits_per_accession( input_pfam_long_format_tsv, logger )
 
     out_path = output_dir / f"{args.phyloname}_{args.run_label}_secretome.tsv"
 

@@ -109,9 +109,29 @@ GENUS_SPECIES___PHYLUM_OF_INTEREST = {
 PHYLUM_LIST_ORDER = [ 'Ctenophora', 'Porifera', 'Placozoa', 'Cnidaria' ]
 
 
+def resolve_against_workflow_root( raw_path, workflow_root ):
+    """Resolve an upstream input path so it survives NextFlow work/ execution.
+
+    Config paths are relative to the workflow directory (where
+    START_HERE-user_config.yaml lives). NextFlow runs each task in a work/
+    subdir, so a bare relative path would resolve against the wrong CWD.
+    Anchor relative paths against workflow_root (an absolute path passed by
+    main.nf as ${projectDir}/..); leave already-absolute paths untouched.
+    """
+    path = Path( raw_path )
+    if path.is_absolute():
+        return path
+    return ( Path( workflow_root ) / path ).resolve()
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description = 'Count HGNC gene group homologs per species from trees_gene_groups output'
+    )
+    parser.add_argument(
+        '--workflow-root',
+        required = True,
+        help = 'Absolute path to the workflow directory (main.nf passes ${projectDir}/..); relative --gene-groups-dir is resolved against this'
     )
     parser.add_argument(
         '--species-order',
@@ -281,7 +301,7 @@ def main():
     # Locate upstream gene_groups directory
     # ========================================================================
 
-    input_gene_groups_dir = Path( args.gene_groups_dir )
+    input_gene_groups_dir = resolve_against_workflow_root( args.gene_groups_dir, args.workflow_root )
     input_step_1_dir = input_gene_groups_dir / 'STEP_1-homolog_discovery'
 
     if not input_step_1_dir.is_dir():

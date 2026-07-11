@@ -2,7 +2,7 @@
 
 <!-- ============================================================================
 AI:      Claude Code | Opus 4.7 | 2026 May 21 (initial; Moroz spec scoping)
-AI:      Claude Code | Opus 4.7 | 2026 May 23 (BLOCK_secretome_evidence_table scaffold)
+AI:      Claude Code | Opus 4.7 | 2026 May 23 (STEP_1-build_evidence_table scaffold)
 AI:      Claude Code | Opus 4.7 | 2026 May 25 (STEP_2-filter_secretome scripts)
 AI:      Claude Code | Opus 4.7 (1M context) | 2026 May 26 (detailed eval pass)
 Human:   Eric Edsinger
@@ -19,10 +19,10 @@ Human:   Eric Edsinger
   - `../annotations_hmms/output_to_input/BLOCK_interproscan_parsed/pfam/` — Pfam domain annotations
   - `../genomesDB/output_to_input/STEP_4-create_final_species_set/speciesN_gigantic_T1_proteomes/` — proteomes
 - Outputs to (`output_to_input/`):
-  - `BLOCK_secretome_evidence_table/` — per-species wide evidence tables
+  - `STEP_1-build_evidence_table/` — per-species wide evidence tables
   - `STEP_2-filter_secretome/` — per-species filtered secretome tables
   - `BLOCK_secretome_per_moroz_17may2026/` — (future, when scripted)
-- Downstream consumers: comparative analyses, `upload_to_server/` (later)
+- Downstream consumers: comparative analyses, `upload_to_server/` (shared-helper publish)
 
 ---
 
@@ -39,7 +39,7 @@ Per Moroz lab specification (2026-05-17).
 
 | Path | Type | Status | Purpose |
 |------|------|--------|---------|
-| `BLOCK_secretome_evidence_table/` | BLOCK (logically STEP_1 — see AI_GUIDE naming note) | Implemented (validate + scaffold for evidence-table builder) | Pivot the long-format `annotations_hmms` DB into one wide per-protein TSV per species |
+| `STEP_1-build_evidence_table/` | STEP (sequential; feeds STEP_2-filter_secretome) | Implemented (validate + evidence-table builder) | Pivot the long-format `annotations_hmms` DB into one wide per-protein TSV per species |
 | `STEP_2-filter_secretome/` | STEP_2 | Implemented (6 scripts: validate / 3 augmenters / filter / write_run_log) | Consume the evidence tables; augment with derived cols + orthogroups + top-10 BLAST; apply user-defined filters → per-species secretome |
 | `BLOCK_secretome_per_moroz_17may2026/` | BLOCK (orthogonal — separate implementation track) | Scaffold only (awaiting upstream SignalP refresh) | Direct implementation of the Moroz 2026-05-17 spec with sequential KEEPER/DROPPER filters |
 
@@ -62,8 +62,8 @@ upstream-data table.)
 
 ```bash
 # Recommended sequence: build evidence tables, then filter
-# 1. Build evidence tables (logically STEP_1)
-cd BLOCK_secretome_evidence_table
+# 1. Build evidence tables (STEP_1)
+cd STEP_1-build_evidence_table
 cp -r workflow-COPYME-build_evidence_table workflow-RUN_1-build_evidence_table
 cd workflow-RUN_1-build_evidence_table
 vi START_HERE-user_config.yaml
@@ -90,14 +90,17 @@ attempting to run.
 | `BLOCK_*/workflow-COPYME-*/README.md` and `.../ai/AI_GUIDE.md` | Workflow-level docs |
 | `*/workflow-COPYME-*/START_HERE-user_config.yaml` | User-editable run configuration |
 
-## Status (2026-05-26)
+## Status (2026-07-11)
 
-- `BLOCK_secretome_evidence_table/` — scaffold + validate implemented;
-  evidence-table builder script designed but pending finalization.
-- `STEP_2-filter_secretome/` — 6 scripts implemented and tested
-  (augment with derived cols / orthogroups / blastp_top10 + filter + run log).
+- `STEP_1-build_evidence_table/` — validate + evidence-table builder
+  implemented and run (70 per-species wide evidence tables).
+- `STEP_2-filter_secretome/` — 6 scripts implemented and run
+  (augment with derived cols / orthogroups / blastp_top10 + filter + run log);
+  orthogroups sourced from `BLOCK_orthohmm_GIGANTIC` (202,994 orthogroups).
 - `BLOCK_secretome_per_moroz_17may2026/` — scaffold only, awaiting fresh
   SignalP run from annotations_hmms.
+- Server: STEP_1 + STEP_2 published via shared-helper wrapper
+  (`RUN-update_upload_to_server.sh`) into the nested `upload_to_server/` tree.
 
 ---
 

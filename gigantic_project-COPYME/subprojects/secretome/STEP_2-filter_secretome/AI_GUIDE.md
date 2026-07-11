@@ -10,12 +10,12 @@ Human:   Eric Edsinger
 
 - Parent (subproject AI guide): [`../AI_GUIDE.md`](../AI_GUIDE.md) — secretome overview
 - Parent (subproject README): [`../README.md`](../README.md)
-- Upstream unit: [`../BLOCK_secretome_evidence_table/`](../BLOCK_secretome_evidence_table/) (logically STEP_1; produces the evidence tables this STEP consumes)
+- Upstream unit: [`../STEP_1-build_evidence_table/`](../STEP_1-build_evidence_table/) (STEP_1; produces the evidence tables this STEP consumes)
 - Workflow template: [`workflow-COPYME-filter_secretome/`](workflow-COPYME-filter_secretome/)
 - This STEP's workflow guide: [`workflow-COPYME-filter_secretome/ai/AI_GUIDE.md`](workflow-COPYME-filter_secretome/ai/AI_GUIDE.md)
 - Reads FROM:
-  - `../output_to_input/BLOCK_secretome_evidence_table/` (upstream — per-species wide evidence tables)
-  - `../../orthogroups/output_to_input/BLOCK_orthohmm/` (for orthogroup augmentation in script 005)
+  - `../output_to_input/STEP_1-build_evidence_table/` (upstream — per-species wide evidence tables)
+  - `../../orthogroups/output_to_input/BLOCK_orthohmm_GIGANTIC/` (for orthogroup augmentation in script 005; canonical species70, 202,994 orthogroups)
   - `../../one_direction_homologs/output_to_input/BLOCK_diamond_ncbi_nr/ncbi_nr_top_hits/` (for blastp_top10 augmentation in script 006)
   - `INPUT_user/<filter_manifest>.json` (user-defined filter rules)
 - Outputs TO: `../output_to_input/STEP_2-filter_secretome/` — per-species filtered secretome tables
@@ -27,7 +27,7 @@ Human:   Eric Edsinger
 ## Purpose
 
 Consumes the wide per-species evidence tables from
-`BLOCK_secretome_evidence_table` (logically STEP_1), augments with
+`STEP_1-build_evidence_table` (STEP_1), augments with
 derived columns + orthogroups + top-10 BLAST hits, applies a
 user-defined JSON filter manifest, and emits the per-species filtered
 secretome.
@@ -53,7 +53,7 @@ columns.
 ## Why "STEP_2"
 
 This unit is correctly named STEP_2 — it depends sequentially on STEP_1
-(`BLOCK_secretome_evidence_table`). Per §41, sequential-dependency units
+(`STEP_1-build_evidence_table`). Per §41, sequential-dependency units
 should be STEP_*. The naming inconsistency is on the upstream unit
 (see subproject AI_GUIDE) — this one is canonical.
 
@@ -70,4 +70,4 @@ own filter manifest.
 - [`../AI_GUIDE.md`](../AI_GUIDE.md) — subproject overview + Moroz spec
 - [`workflow-COPYME-filter_secretome/README.md`](workflow-COPYME-filter_secretome/README.md) — workflow usage
 - [`workflow-COPYME-filter_secretome/ai/AI_GUIDE.md`](workflow-COPYME-filter_secretome/ai/AI_GUIDE.md) — workflow execution
-- `../BLOCK_secretome_evidence_table/AI_GUIDE.md` — upstream STEP_1
+- `../STEP_1-build_evidence_table/AI_GUIDE.md` — upstream STEP_1

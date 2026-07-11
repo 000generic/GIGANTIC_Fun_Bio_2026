@@ -62,19 +62,52 @@ output:
 # ============================================================================
 # NCBI TAXONOMY SETTINGS
 # ============================================================================
+# IMPORTANT (reproducibility): GIGANTIC fills gaps in NCBI taxonomy with
+# numbered unknown clades (e.g., Kingdom6555). Those numbers - and therefore
+# the phylonames assigned to your species - depend on the EXACT NCBI taxonomy
+# snapshot used. Re-running against a DIFFERENT snapshot can change assigned
+# phylonames, which would silently break every downstream subproject that
+# already keyed on the old phyloname. To make re-runs reproducible, pin to a
+# fixed snapshot with source_mode: "supply_path" or "download_version".
 
 ncbi_taxonomy:
-  # Whether to download fresh taxonomy on each run
-  # Set to false to use existing database (faster)
-  # Set to true to always get the latest NCBI taxonomy
-  force_download: false
+  # How to obtain the NCBI taxonomy snapshot. One of:
+  #   "download_latest"   Download the current new_taxdump from NCBI (default).
+  #                       Zero setup, but the snapshot moves over time, so two
+  #                       runs on different days may differ.
+  #   "supply_path"       Reuse an existing extracted taxonomy directory you
+  #                       already have on disk (must contain rankedlineage.dmp).
+  #                       RECOMMENDED once your project has a snapshot: pinning
+  #                       one snapshot guarantees identical phylonames across
+  #                       re-runs. No download is performed.
+  #   "download_version"  Download a specific dated snapshot from the NCBI
+  #                       archive (reproducible without keeping a local copy).
+  source_mode: "download_latest"
 
-  # NCBI FTP URL for taxonomy download
-  # (Usually no need to change this)
+  # --- supply_path mode ---
+  # Path to an existing taxonomy directory that contains rankedlineage.dmp.
+  # Absolute, or relative to THIS workflow directory. Example:
+  #   "../../../../INPUT_user/ncbi_taxonomy/database-ncbi_taxonomy_latest"
+  taxonomy_path: ""
+
+  # --- download_version mode ---
+  # Dated NCBI new_taxdump snapshot to download, as YYYY-MM-DD. NCBI publishes
+  # monthly archives (the 1st of each month), e.g. "2026-03-01". Resolved via
+  # archive_url_pattern below.
+  download_version: ""
+
+  # --- download_latest mode ---
+  # NCBI source for the current new_taxdump (contains rankedlineage.dmp).
+  # (Usually no need to change this.)
   download_url: "ftp://ftp.ncbi.nih.gov/pub/taxonomy/new_taxdump/new_taxdump.tar.gz"
 
-  # Versioned database directory pattern
-  # {timestamp} will be replaced with download date/time (YYYYMMDD_HHMMSS)
+  # URL pattern for download_version; {version} is replaced with download_version.
+  # The archived files are .zip (the workflow extracts them accordingly).
+  archive_url_pattern: "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump_archive/new_taxdump_{version}.zip"
+
+  # Versioned local database directory pattern for DOWNLOADED snapshots.
+  # {timestamp} is replaced with download date/time (YYYYMMDD_HHMMSS).
+  # (supply_path is symlinked in place, not copied.)
   database_dir_pattern: "database-ncbi_taxonomy_{timestamp}"
 
 # ============================================================================

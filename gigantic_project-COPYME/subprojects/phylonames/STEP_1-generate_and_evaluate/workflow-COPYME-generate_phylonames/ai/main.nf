@@ -27,8 +27,16 @@ nextflow.enable.dsl = 2
 // ============================================================================
 
 /*
- * Process 1: Download NCBI Taxonomy Database
+ * Process 1: Obtain NCBI Taxonomy Database
  * Calls: scripts/001_ai-bash-download_ncbi_taxonomy.sh
+ *
+ * The snapshot is obtained according to params.ncbi_taxonomy.source_mode:
+ *   download_latest  - download current new_taxdump from NCBI
+ *   supply_path      - reuse an existing extracted taxonomy on disk (no download)
+ *   download_version - download a specific dated archive (new_taxdump_<date>.zip)
+ * In every mode the script materializes a database-ncbi_taxonomy_latest handle
+ * (and a database-ncbi_taxonomy_<...> directory/symlink) in the work dir so the
+ * downstream processes see one uniform interface.
  */
 process download_ncbi_taxonomy {
     label 'local'
@@ -39,21 +47,13 @@ process download_ncbi_taxonomy {
 
     script:
     """
-    # Check if database already exists (skip download if so)
-    if [ -d "${projectDir}/../database-ncbi_taxonomy_latest" ] && [ "${params.ncbi_taxonomy.force_download}" != "true" ]; then
-        echo "NCBI taxonomy database already exists. Skipping download."
-        echo "To force re-download, set force_download: true in config.yaml"
-        # Create symlinks to existing database for NextFlow output tracking
-        ln -s ${projectDir}/../database-ncbi_taxonomy_latest database-ncbi_taxonomy_latest
-        # Get the actual directory name
-        ACTUAL_DIR=\$(readlink -f ${projectDir}/../database-ncbi_taxonomy_latest)
-        ln -s \$ACTUAL_DIR \$(basename \$ACTUAL_DIR)
-    else
-        echo "Downloading NCBI taxonomy database..."
-        # The download script creates the database in the current directory (NextFlow work dir)
-        # It also creates the database-ncbi_taxonomy_latest symlink
-        bash ${projectDir}/scripts/001_ai-bash-download_ncbi_taxonomy.sh
-    fi
+    bash ${projectDir}/scripts/001_ai-bash-download_ncbi_taxonomy.sh \\
+        --source-mode "${params.ncbi_taxonomy.source_mode}" \\
+        --taxonomy-path "${params.ncbi_taxonomy.taxonomy_path}" \\
+        --download-version "${params.ncbi_taxonomy.download_version}" \\
+        --download-url "${params.ncbi_taxonomy.download_url}" \\
+        --archive-url-pattern "${params.ncbi_taxonomy.archive_url_pattern}" \\
+        --workflow-dir "${projectDir}/.."
     """
 }
 
@@ -138,14 +138,11 @@ process generate_taxonomy_summary {
     // Publish to OUTPUT_pipeline
     publishDir "${projectDir}/../${params.output.base_dir}", mode: 'copy', overwrite: true
 
-    // Also publish to upload_to_server for web viewing
-    publishDir "${projectDir}/../../upload_to_server/taxonomy_summaries", mode: 'copy', overwrite: true,
-               saveAs: { filename ->
-                   if (filename.endsWith('.html') || filename.endsWith('.md')) {
-                       return filename.tokenize('/').last()
-                   }
-                   return null
-               }
+    // NOTE: Publishing to the data server is handled by the manifest-based
+    // system (upload_manifest.tsv + RUN-update_upload_to_server.sh, per §38),
+    // NOT by a direct publishDir here. The previous direct publishDir into
+    // ../../upload_to_server/taxonomy_summaries was a stale pre-manifest
+    // leftover that wrote to a non-canonical per-STEP location; removed.
 
     input:
         path project_mapping
