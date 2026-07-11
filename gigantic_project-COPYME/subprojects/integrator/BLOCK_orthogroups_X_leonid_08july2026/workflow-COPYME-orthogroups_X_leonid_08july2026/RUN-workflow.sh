@@ -218,8 +218,8 @@ echo "Creating symlinks for downstream consumers..."
 SHARED_DIR="../../output_to_input/BLOCK_orthogroups_X_leonid_08july2026/${RUN_LABEL}"
 mkdir -p "${SHARED_DIR}"
 
-# Remove stale table symlinks from previous runs
-for old in "${SHARED_DIR}"/*.tsv; do
+# Remove stale symlinks from previous runs
+for old in "${SHARED_DIR}"/*.tsv "${SHARED_DIR}"/*.txt; do
     [ -L "$old" ] && rm -f "$old"
 done
 
@@ -232,9 +232,13 @@ if [ -f "${POINTER}" ]; then
     fi
 fi
 
-if [ -f "OUTPUT_pipeline/2-output/2_ai-validation_report.txt" ]; then
-    ln -sf "../../../BLOCK_orthogroups_X_leonid_08july2026/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/2-output/2_ai-validation_report.txt" \
-        "${SHARED_DIR}/2_ai-validation_report.txt"
+VAL_POINTER="OUTPUT_pipeline/2-output/2_ai-validation_report_filename.txt"
+if [ -f "${VAL_POINTER}" ]; then
+    VAL_BASENAME=$(tr -d '\n\r' < "${VAL_POINTER}")
+    if [ -f "OUTPUT_pipeline/2-output/${VAL_BASENAME}" ]; then
+        ln -sf "../../../BLOCK_orthogroups_X_leonid_08july2026/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/2-output/${VAL_BASENAME}" \
+            "${SHARED_DIR}/${VAL_BASENAME}"
+    fi
 fi
 
 SYMLINK_COUNT=$(find "${SHARED_DIR}" -type l 2>/dev/null | wc -l)

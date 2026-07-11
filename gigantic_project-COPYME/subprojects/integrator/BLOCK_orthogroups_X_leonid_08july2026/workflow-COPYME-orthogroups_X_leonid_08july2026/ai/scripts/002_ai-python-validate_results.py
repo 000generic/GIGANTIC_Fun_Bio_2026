@@ -65,9 +65,11 @@ def main():
 
     output_base = Path( args.output_dir )
     table_path = U.resolve_output_table_path( output_base )
+    timestamp_suffix = U.timestamp_suffix_from_table_filename( table_path.name )
     report_dir = output_base / "2-output"
     report_dir.mkdir( parents = True, exist_ok = True )
-    report_path = report_dir / "2_ai-validation_report.txt"
+    report_filename = U.build_timestamped_validation_report_filename( timestamp_suffix )
+    report_path = report_dir / report_filename
 
     failures = []
     checks = []
@@ -79,6 +81,7 @@ def main():
 
     if not table_path.is_file():
         report_path.write_text( f"FAIL\nMissing output table: {table_path}\n" )
+        U.write_validation_report_pointer( output_base, report_filename )
         print( f"CRITICAL ERROR: output table not found: {table_path}", file = sys.stderr )
         sys.exit( 1 )
 
@@ -228,6 +231,7 @@ def main():
     report_lines.extend( [ "", "=" * 70 ] )
 
     report_path.write_text( '\n'.join( report_lines ) + '\n' )
+    U.write_validation_report_pointer( output_base, report_filename )
     print( f"[002] validation {status}: {len( failures )} failure(s) -> {report_path}" )
 
     if failures:

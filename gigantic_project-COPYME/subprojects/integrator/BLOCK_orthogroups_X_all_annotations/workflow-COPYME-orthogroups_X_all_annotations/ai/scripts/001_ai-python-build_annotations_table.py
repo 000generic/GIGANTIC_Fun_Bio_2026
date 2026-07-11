@@ -87,6 +87,7 @@ the run log, never dropped silently.
 import argparse
 import sys
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert( 0, str( Path( __file__ ).parent ) )
@@ -787,8 +788,10 @@ def main():
     output_base = Path( args.output_dir )
     output_dir = output_base / "1-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    table_filename = U.build_timestamped_table_filename( U.OUTPUT_TABLE_STEM )
+    run_when = datetime.now()
+    table_filename = U.build_timestamped_table_filename( U.OUTPUT_TABLE_STEM, run_when )
     output_path = output_dir / table_filename
+    print( f"[001] run timestamp suffix: {U.filename_timestamp_suffix( run_when )}" )
 
     for required in ( orthogroups_path, clade_map_path, go_id_to_name_path ):
         if not required.is_file():

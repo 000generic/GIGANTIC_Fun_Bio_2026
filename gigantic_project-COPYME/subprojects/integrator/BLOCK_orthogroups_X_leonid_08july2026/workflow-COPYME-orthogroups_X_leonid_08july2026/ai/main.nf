@@ -56,6 +56,7 @@ if ( params.help ) {
 
 process build_leonid_table {
     label 'local'
+    cache false
 
     output:
         val true, emit: done
@@ -74,6 +75,7 @@ process build_leonid_table {
 
 process validate_results {
     label 'local'
+    cache false
 
     input:
         val build_done

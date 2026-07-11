@@ -44,6 +44,7 @@ NAME_DELIM = ' // '
 
 # Main output table stem (timestamp suffix appended at run time).
 OUTPUT_TABLE_STEM = "1_ai-orthogroups_X_all_annotations"
+VALIDATION_REPORT_STEM = "2_ai-validation_report"
 
 MONTH_NAMES = (
     "january", "february", "march", "april", "may", "june",
@@ -63,16 +64,38 @@ def build_timestamped_table_filename( table_stem: str, when: datetime = None ) -
     return f"{table_stem}{filename_timestamp_suffix( when )}.tsv"
 
 
-def write_output_table_pointer( output_dir: Path, table_filename: str ):
+def build_timestamped_validation_report_filename( timestamp_suffix: str ) -> str:
+    """Build the validation report filename: 2_ai-validation_report_july11_1606.txt"""
+    return f"{VALIDATION_REPORT_STEM}{timestamp_suffix}.txt"
+
+
+def timestamp_suffix_from_table_filename( table_filename: str, table_stem: str = OUTPUT_TABLE_STEM ) -> str:
+    """Extract the _monthdd_hhmm suffix from a timestamped table filename."""
+    base = table_filename
+    if base.endswith( '.tsv' ):
+        base = base[ :-4 ]
+    if base.startswith( table_stem ):
+        return base[ len( table_stem ): ]
+    return filename_timestamp_suffix()
+
+
+def write_output_table_pointer( output_base: Path, table_filename: str ):
     """Record the timestamped table filename for validation and RUN-workflow.sh."""
-    pointer_path = output_dir / "1-output" / "1_ai-output_table_filename.txt"
+    pointer_path = output_base / "1-output" / "1_ai-output_table_filename.txt"
     pointer_path.write_text( table_filename + '\n' )
+
+
+def write_validation_report_pointer( output_base: Path, report_filename: str ):
+    """Record the timestamped validation report filename for RUN-workflow.sh."""
+    pointer_path = output_base / "2-output" / "2_ai-validation_report_filename.txt"
+    pointer_path.parent.mkdir( parents = True, exist_ok = True )
+    pointer_path.write_text( report_filename + '\n' )
 
 
 def resolve_output_table_path( output_base: Path ) -> Path:
     """
-    Locate the Script 001 output table: pointer file first, then newest timestamped
-    match, then legacy fixed-name file.
+    Locate the Script 001 output table: pointer file first, then newest by
+    modification time among timestamped matches, then legacy fixed-name file.
     """
     output_dir = output_base / "1-output"
     pointer_path = output_dir / "1_ai-output_table_filename.txt"
@@ -81,9 +104,9 @@ def resolve_output_table_path( output_base: Path ) -> Path:
         table_path = output_dir / table_filename
         if table_path.is_file():
             return table_path
-    matches = sorted( output_dir.glob( f"{OUTPUT_TABLE_STEM}_*.tsv" ) )
+    matches = list( output_dir.glob( f"{OUTPUT_TABLE_STEM}_*.tsv" ) )
     if matches:
-        return matches[ -1 ]
+        return max( matches, key = lambda path: path.stat().st_mtime )
     legacy_path = output_dir / f"{OUTPUT_TABLE_STEM}.tsv"
     return legacy_path
 
