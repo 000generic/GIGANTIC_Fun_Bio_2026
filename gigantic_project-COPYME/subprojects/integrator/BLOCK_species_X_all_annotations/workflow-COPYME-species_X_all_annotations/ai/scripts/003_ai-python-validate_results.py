@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# AI: Claude Code | Opus 4.8 (1M context) | 2026 June 28 | Purpose: Validate the species_X_all_annotations base + per-structure tables (strict fail-fast, §36)
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 11 | Purpose: Validate the species_X_all_annotations base + per-structure tables (strict fail-fast, §36)
 # Human: Eric Edsinger
 
 """
@@ -17,6 +17,8 @@ Base-table checks (1-output/_shared/):
       cross-species join contamination.
   B4. Availability-flag consistency: when a source flag is 'no', the columns fed
       by that source are NA on every row (a non-NA value would be a leak).
+  B5. Per annotation type: Species_Count in {0,1}; Sequence_Count in [0, #identifiers];
+      identifiers sorted and unique; coverage consistency (0 counts iff empty ids).
 
 Per-structure checks (2-output/<structure>/):
   S1. Each structure dir has exactly one wide table per base table; each wide
@@ -34,16 +36,27 @@ from pathlib import Path
 sys.path.insert( 0, str( Path( __file__ ).parent ) )
 import utils_species_X_all_annotations as U
 
+ANNOTATION_TYPE_PREFIXES = [
+    "Pfam", "InterPro_GO", "PANTHER_GO", "PANTHER",
+    "Annogroups_Pfam", "Annogroups_GO", "Annogroups_PANTHER",
+    "Gene_Groups", "Gene_Families",
+]
+NAMES_BLANK_PREFIXES = { "Gene_Groups", "Gene_Families" }
+
 REQUIRED_BASE_HEADER_IDS = [
     "Sequence_Identifier", "Phyloname", "Genus_Species", "Sequence_Length", "Protein_Sequence",
     "Gene_Size_BP", "CDS_Size_BP", "Protein_Size_AA", "Gene_Sizes_Available",
     "In_Hotspot", "Hotspot_IDs", "Hotspot_Paralog_Counts", "Hotspots_Available",
-    "Top_3_NR_Hits", "Pfam_Annotations", "InterPro_GO_Terms", "PANTHER_GO_Terms",
-    "PANTHER_Families", "Annotations_HMMs_Available",
-    "Annogroups_Pfam", "Annogroups_GO", "Annogroups_PANTHER",
+    "Top_3_NR_Hits",
+] + [
+    column.split( ' (' )[ 0 ]
+    for prefix in ANNOTATION_TYPE_PREFIXES
+    for column in U.feature_header_columns( prefix, "placeholder" )
+] + [
+    "Annotations_HMMs_Available",
     "Orthogroup_ID", "Orthogroup_Member_Protein_Count", "Orthogroup_Species_Count",
     "Secretome_SignalP_Call", "Secretome_SignalP_Probability", "Secretome_DeepLoc_Localization",
-    "Secretome_Available", "Gene_Group_AGS_Memberships", "Gene_Family_AGS_Memberships",
+    "Secretome_Available",
     "Dark_Status", "Dark_Proteome_Available",
 ]
 
@@ -61,10 +74,66 @@ REQUIRED_OCL_HEADER_IDS = [
 AVAILABILITY_CONSISTENCY = [
     ( "Gene_Sizes_Available", [ "Gene_Size_BP", "CDS_Size_BP", "Protein_Size_AA" ] ),
     ( "Hotspots_Available", [ "In_Hotspot", "Hotspot_IDs", "Hotspot_Paralog_Counts" ] ),
-    ( "Annotations_HMMs_Available", [ "Pfam_Annotations", "InterPro_GO_Terms", "PANTHER_GO_Terms", "PANTHER_Families" ] ),
+    ( "Annotations_HMMs_Available", [
+        "Pfam_Species_Count", "Pfam_Sequence_Count", "Pfam_Identifiers", "Pfam_Names",
+        "InterPro_GO_Species_Count", "InterPro_GO_Sequence_Count", "InterPro_GO_Identifiers", "InterPro_GO_Names",
+        "PANTHER_GO_Species_Count", "PANTHER_GO_Sequence_Count", "PANTHER_GO_Identifiers", "PANTHER_GO_Names",
+        "PANTHER_Species_Count", "PANTHER_Sequence_Count", "PANTHER_Identifiers", "PANTHER_Names",
+    ] ),
     ( "Secretome_Available", [ "Secretome_SignalP_Call", "Secretome_SignalP_Probability", "Secretome_DeepLoc_Localization" ] ),
     ( "Dark_Proteome_Available", [ "Dark_Status" ] ),
 ]
+
+
+def phyloname_from_base_filename( filename: str ) -> str:
+    return filename.split( "-proteome_annotations-base" )[ 0 ]
+
+
+def validate_annotation_columns( failures: list, file_label: str, parts: list, header_ids___indices: dict ):
+    for prefix in ANNOTATION_TYPE_PREFIXES:
+        index_species = header_ids___indices[ f"{prefix}_Species_Count" ]
+        index_sequence = header_ids___indices[ f"{prefix}_Sequence_Count" ]
+        index_identifiers = header_ids___indices[ f"{prefix}_Identifiers" ]
+        index_names = header_ids___indices[ f"{prefix}_Names" ]
+
+        species_count_text = parts[ index_species ]
+        sequence_count_text = parts[ index_sequence ]
+        identifiers_cell = parts[ index_identifiers ]
+        names_cell = parts[ index_names ]
+
+        if species_count_text == U.NA:
+            continue
+
+        try:
+            species_count = int( species_count_text )
+            sequence_count = int( sequence_count_text )
+        except ValueError:
+            failures.append( f"B5: {file_label} {prefix} counts are not integers" )
+            continue
+
+        identifiers = [ token for token in identifiers_cell.split( U.DELIM ) if token ] if identifiers_cell else []
+        names = names_cell.split( U.NAME_DELIM ) if names_cell else []
+
+        if species_count not in ( 0, 1 ):
+            failures.append( f"B5: {file_label} {prefix}_Species_Count {species_count} not in {{0,1}}" )
+        if sequence_count < 0 or sequence_count != len( identifiers ):
+            failures.append(
+                f"B5: {file_label} {prefix}_Sequence_Count {sequence_count} != #identifiers {len( identifiers )}"
+            )
+        if identifiers != sorted( identifiers ):
+            failures.append( f"B5: {file_label} {prefix}_Identifiers not sorted" )
+        if len( identifiers ) != len( set( identifiers ) ):
+            failures.append( f"B5: {file_label} {prefix}_Identifiers contain duplicates" )
+        if ( sequence_count == 0 ) != ( len( identifiers ) == 0 ):
+            failures.append( f"B5: {file_label} {prefix} coverage inconsistency" )
+        if prefix in NAMES_BLANK_PREFIXES:
+            if names_cell.strip():
+                failures.append( f"B5: {file_label} {prefix}_Names must be blank but is {names_cell!r}" )
+        elif len( identifiers ) != len( names ):
+            failures.append(
+                f"B5: {file_label} {prefix} identifier/name count mismatch "
+                f"({len( identifiers )} vs {len( names )})"
+            )
 
 
 def main():
@@ -76,10 +145,11 @@ def main():
     output_base = Path( args.output_dir )
     shared_dir = output_base / "1-output" / "_shared"
     structures_root = output_base / "2-output"
+    timestamp_suffix = U.resolve_run_timestamp_suffix( shared_dir )
 
     failures = []
 
-    base_files = sorted( shared_dir.glob( "*-proteome_annotations-base.tsv" ) )
+    base_files = sorted( shared_dir.glob( "*-proteome_annotations-base*.tsv" ) )
     if not base_files:
         print( f"CRITICAL ERROR: no base tables found in {shared_dir}", file = sys.stderr )
         sys.exit( 1 )
@@ -89,9 +159,7 @@ def main():
 
     # ---- BASE checks ------------------------------------------------------
     for base_file in base_files:
-        phyloname = U.phyloname_from_spine_filename(
-            base_file.name.replace( "-proteome_annotations-base.tsv", "-T1-proteome-sequence_table.tsv" )
-        )
+        phyloname = phyloname_from_base_filename( base_file.name )
         with open( base_file, 'r' ) as input_base:
             header_ids___indices = U.build_header_index( input_base.readline() )
 
@@ -142,6 +210,8 @@ def main():
                                 )
                                 break
 
+                validate_annotation_columns( failures, base_file.name, parts, header_ids___indices )
+
             phylonames___row_counts[ phyloname ] = row_count
             total_proteins += row_count
             if row_count == 0:
@@ -153,13 +223,13 @@ def main():
     for structure_dir in structure_dirs:
         structure = structure_dir.name
         structures_validated.append( structure )
-        wide_files = sorted( structure_dir.glob( "*-proteome_all_annotations.tsv" ) )
+        wide_files = sorted( structure_dir.glob( "*-proteome_all_annotations*.tsv" ) )
 
         if len( wide_files ) != len( base_files ):
             failures.append( f"S1: {structure} has {len( wide_files )} wide tables but {len( base_files )} base tables exist" )
 
         for wide_file in wide_files:
-            phyloname = wide_file.name.replace( "-proteome_all_annotations.tsv", "" )
+            phyloname = wide_file.name.split( "-proteome_all_annotations" )[ 0 ]
             expected_rows = phylonames___row_counts.get( phyloname )
             with open( wide_file, 'r' ) as input_wide:
                 header_ids___indices = U.build_header_index( input_wide.readline() )
@@ -194,7 +264,8 @@ def main():
     # ---- report -----------------------------------------------------------
     output_dir = output_base / "3-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_report_path = output_dir / "3_ai-validation_report.txt"
+    report_filename = U.build_timestamped_validation_report_filename( timestamp_suffix )
+    output_report_path = output_dir / report_filename
 
     status = "PASS" if not failures else "FAIL"
     report_lines = [
@@ -203,6 +274,7 @@ def main():
         "=" * 78,
         "",
         f"Status: {status}",
+        f"Run timestamp suffix: {timestamp_suffix}",
         "",
         f"Species base tables:        {len( base_files )}",
         f"Total proteins (all base):  {total_proteins}",
@@ -218,6 +290,9 @@ def main():
 
     with open( output_report_path, 'w' ) as output_report:
         output_report.write( '\n'.join( report_lines ) + '\n' )
+
+    pointer_path = output_dir / "3_ai-validation_report_filename.txt"
+    pointer_path.write_text( report_filename + '\n' )
 
     print( f"[003] validation {status} -> {output_report_path}" )
 

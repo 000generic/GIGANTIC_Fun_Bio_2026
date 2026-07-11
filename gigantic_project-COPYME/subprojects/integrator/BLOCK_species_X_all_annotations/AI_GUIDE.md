@@ -96,13 +96,18 @@ the only OCL annogroup axis.
 `Sequence_Identifier`, `Phyloname`, `Genus_Species`, `Sequence_Length`,
 `Protein_Sequence`; `Gene_Size_BP`/`CDS_Size_BP`/`Protein_Size_AA` (+
 `Gene_Sizes_Available`); `In_Hotspot`/`Hotspot_IDs`/`Hotspot_Paralog_Counts` (+
-`Hotspots_Available`); `Top_3_NR_Hits`; `Pfam_Annotations`, `InterPro_GO_Terms`,
-`PANTHER_GO_Terms`, `PANTHER_Families` (+ `Annotations_HMMs_Available`);
-`Annogroups_Pfam`, `Annogroups_GO`, `Annogroups_PANTHER`; `Orthogroup_ID`,
+`Hotspots_Available`); `Top_3_NR_Hits`; then **four columns per annotation type**
+(`<Type>_Species_Count`, `<Type>_Sequence_Count`, `<Type>_Identifiers`,
+`<Type>_Names`) for Pfam, InterPro_GO, PANTHER_GO, PANTHER, Annogroups_Pfam,
+Annogroups_GO, Annogroups_PANTHER, Gene_Groups, and Gene_Families (+
+`Annotations_HMMs_Available` after the HMM types); `Orthogroup_ID`,
 `Orthogroup_Member_Protein_Count`, `Orthogroup_Species_Count`;
 `Secretome_SignalP_Call`/`_Probability`/`Secretome_DeepLoc_Localization` (+
-`Secretome_Available`); `Gene_Group_AGS_Memberships`,
-`Gene_Family_AGS_Memberships`; `Dark_Status` (+ `Dark_Proteome_Available`).
+`Secretome_Available`); `Dark_Status` (+ `Dark_Proteome_Available`).
+
+Output filenames carry a runtime `datetime` suffix (`_july11_1647`) so each run
+is uniquely stamped. The suffix is recorded in
+`1-output/_shared/1_ai-run_timestamp_suffix.txt` and reused by Scripts 002 and 003.
 
 ### Per-structure wide table (`2-output/<structure>/`)
 All base columns, then: `Structure_ID`;

@@ -1,4 +1,4 @@
-# AI: Claude Code | Opus 4.8 (1M context) | 2026 June 28 | Purpose: Shared helpers for the species_X_all_annotations integration scripts
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 11 | Purpose: Shared helpers for the species_X_all_annotations integration scripts
 # Human: Eric Edsinger
 
 """
@@ -25,7 +25,9 @@ All scripts in this workflow import this module via:
     import utils_species_X_all_annotations as U
 """
 
+from datetime import datetime
 from pathlib import Path
+import sys
 import yaml
 
 # In-column delimiters.
@@ -42,6 +44,150 @@ SUBDELIM = ';'
 # times; a value absent for a given protein is recorded NA, never silently
 # dropped (per AI_BEHAVIOR.md zero-tolerance for silent artifacts).
 NA = 'NA'
+
+# Delimiter for annotation NAME columns (see orthogroups utils — names may contain commas).
+NAME_DELIM = ' // '
+
+VALIDATION_REPORT_STEM = "3_ai-validation_report"
+
+MONTH_NAMES = (
+    "january", "february", "march", "april", "may", "june",
+    "july", "august", "september", "october", "november", "december",
+)
+
+# Annogroup source -> four-column output prefix.
+ANNOGROUP_SOURCE_PREFIXES = {
+    "pfam": "Annogroups_Pfam",
+    "go": "Annogroups_GO",
+    "panther": "Annogroups_PANTHER",
+}
+
+
+def filename_timestamp_suffix( when: datetime = None ) -> str:
+    """Return a run timestamp suffix like _july11_1647 (month name + day + hhmm)."""
+    when = when or datetime.now()
+    month = MONTH_NAMES[ when.month - 1 ]
+    return f"_{month}{when.day}_{when.hour:02d}{when.minute:02d}"
+
+
+def build_timestamped_proteome_base_filename( phyloname: str, when: datetime = None ) -> str:
+    """Build per-species base table filename with run timestamp."""
+    return f"{phyloname}-proteome_annotations-base{filename_timestamp_suffix( when )}.tsv"
+
+
+def build_timestamped_proteome_wide_filename( phyloname: str, when: datetime = None ) -> str:
+    """Build per-species wide table filename with run timestamp."""
+    return f"{phyloname}-proteome_all_annotations{filename_timestamp_suffix( when )}.tsv"
+
+
+def build_timestamped_availability_summary_filename( when: datetime = None ) -> str:
+    """Build feature availability summary filename with run timestamp."""
+    return f"feature_availability_summary{filename_timestamp_suffix( when )}.tsv"
+
+
+def build_timestamped_validation_report_filename( timestamp_suffix: str ) -> str:
+    """Build validation report filename: 3_ai-validation_report_july11_1647.txt"""
+    return f"{VALIDATION_REPORT_STEM}{timestamp_suffix}.txt"
+
+
+def write_run_timestamp_pointer( shared_output_dir: Path, timestamp_suffix: str ):
+    """Record the run timestamp suffix for Scripts 002 and 003."""
+    pointer_path = shared_output_dir / "1_ai-run_timestamp_suffix.txt"
+    pointer_path.write_text( timestamp_suffix + '\n' )
+
+
+def resolve_run_timestamp_suffix( shared_output_dir: Path ) -> str:
+    """
+    Read the run timestamp suffix written by Script 001. Fail-fast if missing
+    when timestamped base tables exist but the pointer does not.
+    """
+    pointer_path = shared_output_dir / "1_ai-run_timestamp_suffix.txt"
+    if pointer_path.is_file():
+        return pointer_path.read_text().strip()
+    matches = list( shared_output_dir.glob( "*-proteome_annotations-base_*.tsv" ) )
+    if matches:
+        newest = max( matches, key = lambda path: path.stat().st_mtime )
+        marker = "-proteome_annotations-base"
+        base = newest.name[ :-4 ] if newest.name.endswith( '.tsv' ) else newest.name
+        if marker in base:
+            return base.split( marker, 1 )[ 1 ]
+    return filename_timestamp_suffix()
+
+
+def annogroup_prefix_for_source( source: str ) -> str:
+    """Map annogroups subproject source name to the four-column output prefix."""
+    return ANNOGROUP_SOURCE_PREFIXES.get( source, f"Annogroups_{source.capitalize()}" )
+
+
+def annogroup_name_from_map_fields( annogroup_type: str, annotation_definitions: str ) -> str:
+    """Human-readable annogroup name from the annogroup MAP row."""
+    definitions = annotation_definitions.strip()
+    if definitions:
+        return definitions
+    if annogroup_type == "absent":
+        return "Absent from genome"
+    return annogroup_type
+
+
+def guard_name( label: str, identifier: str, name: str ):
+    """Fail-fast if a name would corrupt the NAME_DELIM-separated list."""
+    if NAME_DELIM in name:
+        print(
+            f"CRITICAL ERROR: {label} name for {identifier} contains NAME_DELIM "
+            f"{NAME_DELIM!r} and would corrupt the *_Names list: {name!r}",
+            file = sys.stderr,
+        )
+        sys.exit( 1 )
+
+
+def format_per_protein_annotation_columns(
+    identifiers: list,
+    names: list = None,
+    source_available: bool = True,
+    names_blank: bool = False,
+) -> list:
+    """
+    Build the four per-protein annotation columns for one row.
+
+    Species_Count is 1 when this protein carries at least one annotation of the
+    type (one species, one protein). Sequence_Count is the non-redundant count
+    of annotation identifiers on this protein. When the source is unavailable
+    for the species, all four cells are NA.
+    """
+    if not source_available:
+        return [ NA, NA, NA, NA ]
+    if not identifiers:
+        return [ '0', '0', '', '' ]
+    species_count = '1'
+    sequence_count = str( len( identifiers ) )
+    identifiers_cell = DELIM.join( identifiers )
+    if names_blank:
+        names_cell = ''
+    elif names is not None:
+        names_cell = NAME_DELIM.join( names )
+    else:
+        names_cell = NAME_DELIM.join( identifiers )
+    return [ species_count, sequence_count, identifiers_cell, names_cell ]
+
+
+def feature_header_columns( prefix: str, label: str, names_blank: bool = False ) -> list:
+    """Self-documenting headers for one annotation type's four columns."""
+    if names_blank:
+        names_desc = (
+            f"{prefix}_Names (intentionally blank; {label} has no separate human-readable name -- "
+            f"see {prefix}_Identifiers)"
+        )
+    else:
+        names_desc = (
+            f"{prefix}_Names (' // ' delimited {label} names aligned to {prefix}_Identifiers; "
+            f"' // ' used because names may contain commas, semicolons, or pipes)"
+        )
+    return [
+        f"{prefix}_Species_Count (1 if this protein carries at least one {label} annotation else 0; NA if source unavailable for species)",
+        f"{prefix}_Sequence_Count (non-redundant count of {label} identifiers on this protein; NA if source unavailable for species)",
+        f"{prefix}_Identifiers (comma delimited non-redundant {label} identifiers on this protein)",
+        names_desc,
+    ]
 
 
 def load_config( config_path: str ) -> dict:

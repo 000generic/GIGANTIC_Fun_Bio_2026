@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# AI: Claude Code | Opus 4.8 (1M context) | 2026 June 28 | Purpose: Phase 1 — build per-species proteome annotation base tables (every structure-invariant per-gene feature joined onto the proteome spine)
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 11 | Purpose: Phase 1 — build per-species proteome annotation base tables (every structure-invariant per-gene feature joined onto the proteome spine)
 # Human: Eric Edsinger
 
 """
@@ -36,6 +36,7 @@ membership file is missing.
 import argparse
 import sys
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
 
 sys.path.insert( 0, str( Path( __file__ ).parent ) )
@@ -45,6 +46,8 @@ import utils_species_X_all_annotations as U
 # ---------------------------------------------------------------------------
 # BASE table column schema (self-documenting headers, §34). Single source of
 # truth for Script 002 (which appends OCL columns) and Script 003 (validation).
+# Annotation types use four columns each: Species_Count, Sequence_Count,
+# Identifiers, Names (aligned with orthogroups_X_all_annotations).
 # ---------------------------------------------------------------------------
 BASE_HEADER_COLUMNS = [
     "Sequence_Identifier (full GIGANTIC protein identifier g_gene-t_rna-p_protein-n_phyloname; the per-protein join key)",
@@ -61,14 +64,9 @@ BASE_HEADER_COLUMNS = [
     "Hotspot_Paralog_Counts (comma delimited paralog counts parallel to Hotspot_IDs; NA if none or unavailable)",
     "Hotspots_Available (yes if the hotspots per species table exists for this species else no)",
     "Top_3_NR_Hits (top 3 NCBI nr DIAMOND BLASTp hits semicolon delimited each as hit header text with e-value; NA if no hits)",
-    "Pfam_Annotations (semicolon delimited Pfam hits each as accession then description from annotations_hmms; NA if none)",
-    "InterPro_GO_Terms (comma delimited GO identifiers sourced from InterProScan; NA if none)",
-    "PANTHER_GO_Terms (comma delimited GO identifiers sourced from PANTHER; NA if none)",
-    "PANTHER_Families (semicolon delimited PANTHER hits each as accession then description; NA if none)",
+] + U.feature_header_columns( "Pfam", "Pfam domain" ) + U.feature_header_columns( "InterPro_GO", "InterProScan GO term" ) + U.feature_header_columns( "PANTHER_GO", "PANTHER GO term" ) + U.feature_header_columns( "PANTHER", "PANTHER family" ) + [
     "Annotations_HMMs_Available (yes if the annotations_hmms per species tables exist for this species else no)",
-    "Annogroups_Pfam (comma delimited pfam annogroup identifiers this protein belongs to from the annogroups subproject; NA if none)",
-    "Annogroups_GO (comma delimited go annogroup identifiers this protein belongs to; NA if none)",
-    "Annogroups_PANTHER (comma delimited panther annogroup identifiers this protein belongs to; NA if none)",
+] + U.feature_header_columns( "Annogroups_Pfam", "pfam annogroup" ) + U.feature_header_columns( "Annogroups_GO", "go annogroup" ) + U.feature_header_columns( "Annogroups_PANTHER", "panther annogroup" ) + [
     "Orthogroup_ID (OrthoHMM orthogroup identifier this protein belongs to; NA if the protein is in no orthogroup)",
     "Orthogroup_Member_Protein_Count (number of member proteins in the orthogroup; NA if no orthogroup)",
     "Orthogroup_Species_Count (number of distinct species in the orthogroup; NA if no orthogroup)",
@@ -76,8 +74,7 @@ BASE_HEADER_COLUMNS = [
     "Secretome_SignalP_Probability (signalp slow model probability; NA if unavailable)",
     "Secretome_DeepLoc_Localization (deeploc predicted subcellular localization; NA if unavailable)",
     "Secretome_Available (yes if the secretome evidence table exists for this species else no)",
-    "Gene_Group_AGS_Memberships (comma delimited trees_gene_groups gene group names whose AGS includes this protein; NA if none)",
-    "Gene_Family_AGS_Memberships (comma delimited trees_gene_families gene family names whose AGS includes this protein; NA if none)",
+] + U.feature_header_columns( "Gene_Groups", "trees_gene_groups gene group", names_blank = True ) + U.feature_header_columns( "Gene_Families", "trees_gene_families gene family", names_blank = True ) + [
     "Dark_Status (DARK or ANNOTATED from dark_proteomes; NA if unavailable)",
     "Dark_Proteome_Available (yes if the dark proteome table exists for this species else no)",
 ]
@@ -115,6 +112,32 @@ def load_orthogroups( orthogroups_path: Path ):
                     species.add( genus_species )
             orthogroups___species_counts[ orthogroup_id ] = len( species )
     return proteins___orthogroups, orthogroups___member_counts, orthogroups___species_counts
+
+
+def load_annogroup_map( map_path: Path, source_label: str ) -> dict:
+    """Build { Annogroup_ID: name } for every row in the annogroup MAP."""
+    annogroup_ids___names = {}
+    with open( map_path, 'r' ) as input_map:
+        # Annogroup_ID (...)\tSource (...)\tAnnogroup_Type (...)\tDefining_Features (...)\tAnnotation_Definitions (...)
+        header_ids___indices = U.build_header_index( input_map.readline() )
+        index_annogroup = header_ids___indices[ "Annogroup_ID" ]
+        index_type = header_ids___indices[ "Annogroup_Type" ]
+        index_definitions = header_ids___indices[ "Annotation_Definitions" ]
+        for line in input_map:
+            line = line.rstrip( '\n' )
+            if not line:
+                continue
+            parts = line.split( '\t' )
+            annogroup_id = parts[ index_annogroup ]
+            annogroup_type = parts[ index_type ]
+            definitions = parts[ index_definitions ] if index_definitions < len( parts ) else ''
+            name = U.annogroup_name_from_map_fields( annogroup_type, definitions )
+            U.guard_name( source_label, annogroup_id, name )
+            annogroup_ids___names[ annogroup_id ] = name
+    if not annogroup_ids___names:
+        print( f"CRITICAL ERROR: no annogroups parsed from {map_path}", file = sys.stderr )
+        sys.exit( 1 )
+    return annogroup_ids___names
 
 
 def load_annogroup_membership( membership_path: Path ) -> dict:
@@ -233,9 +256,10 @@ def load_nr_hits_for_species( nr_path: Path, top_n: int ) -> dict:
 def load_hmms_accession_table_for_species( table_path: Path ) -> dict:
     """
     annotations_hmms consolidated per-species table (pfam or panther) ->
-    sequence id -> [ 'accession description', ... ] (one entry per hit row).
+    sequence id -> [ ( accession, description ), ... ] deduplicated by accession.
     """
     sequences___hits = defaultdict( list )
+    seen = set()
     with open( table_path, 'r' ) as input_table:
         # Phyloname (...)\tSequence_Identifier (...)\tDomain_Start (...)\tDomain_Stop (...)\tDatabase_Name (...)\tAnnotation_Identifier (...)\tAnnotation_Details (...)
         header_ids___indices = U.build_header_index( input_table.readline() )
@@ -247,20 +271,23 @@ def load_hmms_accession_table_for_species( table_path: Path ) -> dict:
             if not line:
                 continue
             parts = line.split( '\t' )
+            sequence_identifier = parts[ index_sequence ]
             accession = parts[ index_accession ]
             details = parts[ index_details ] if index_details < len( parts ) else ""
-            entry = f"{accession} {details}".strip()
-            sequences___hits[ parts[ index_sequence ] ].append( entry )
+            dedupe_key = ( sequence_identifier, accession )
+            if dedupe_key in seen:
+                continue
+            seen.add( dedupe_key )
+            U.guard_name( "Pfam/PANTHER", accession, details )
+            sequences___hits[ sequence_identifier ].append( ( accession, details ) )
     return sequences___hits
 
 
 def load_hmms_go_table_for_species( table_path: Path ):
     """
     annotations_hmms consolidated GO table -> two maps:
-      sequences___interpro_go : sequence id -> [ clean GO ids from InterProScan ]
-      sequences___panther_go  : sequence id -> [ clean GO ids from PANTHER ]
-    Source is encoded as a parenthetical suffix on the GO Annotation_Identifier.
-    Each GO id is deduplicated per sequence per source (a GO term can recur).
+      sequences___interpro_go : sequence id -> [ ( clean GO id, GO name ), ... ]
+      sequences___panther_go  : sequence id -> [ ( clean GO id, GO name ), ... ]
     """
     sequences___interpro_go = defaultdict( list )
     sequences___panther_go = defaultdict( list )
@@ -270,6 +297,7 @@ def load_hmms_go_table_for_species( table_path: Path ):
         header_ids___indices = U.build_header_index( input_table.readline() )
         index_sequence = header_ids___indices[ "Sequence_Identifier" ]
         index_accession = header_ids___indices[ "Annotation_Identifier" ]
+        index_details = header_ids___indices[ "Annotation_Details" ]
         for line in input_table:
             line = line.rstrip( '\n' )
             if not line:
@@ -277,17 +305,17 @@ def load_hmms_go_table_for_species( table_path: Path ):
             parts = line.split( '\t' )
             sequence_identifier = parts[ index_sequence ]
             ( source, clean_go ) = U.split_go_identifier_source( parts[ index_accession ] )
+            go_name = parts[ index_details ] if index_details < len( parts ) else clean_go
             dedupe_key = ( sequence_identifier, source, clean_go )
             if dedupe_key in seen:
                 continue
             seen.add( dedupe_key )
+            U.guard_name( "GO", clean_go, go_name )
             if source == "InterPro":
-                sequences___interpro_go[ sequence_identifier ].append( clean_go )
+                sequences___interpro_go[ sequence_identifier ].append( ( clean_go, go_name ) )
             elif source == "PANTHER":
-                sequences___panther_go[ sequence_identifier ].append( clean_go )
+                sequences___panther_go[ sequence_identifier ].append( ( clean_go, go_name ) )
             else:
-                # Unknown source tag — record under both is wrong; surface via
-                # neither list but keep visible in raw annotations_hmms GO table.
                 continue
     return sequences___interpro_go, sequences___panther_go
 
@@ -335,12 +363,16 @@ def load_dark_for_species( dark_path: Path ) -> dict:
 # Helpers to format list cells
 # ===========================================================================
 
-def comma_list_or_na( values ) -> str:
-    return U.DELIM.join( values ) if values else U.NA
+def sorted_identifier_name_lists( pairs: list ) -> tuple:
+    """Sort ( identifier, name ) pairs by identifier; return parallel lists."""
+    sorted_pairs = sorted( pairs, key = lambda pair: pair[ 0 ] )
+    identifiers = [ pair[ 0 ] for pair in sorted_pairs ]
+    names = [ pair[ 1 ] for pair in sorted_pairs ]
+    return identifiers, names
 
 
-def semicolon_list_or_na( values ) -> str:
-    return U.SUBDELIM.join( values ) if values else U.NA
+def sorted_unique_strings( values ) -> list:
+    return sorted( set( values ) )
 
 
 def main():
@@ -380,13 +412,24 @@ def main():
         sys.exit( 1 )
 
     annogroup_membership_paths = {}
+    annogroup_map_paths = {}
     for source in annogroup_sources:
-        membership_path = annogroups_dir / species_set_name / source / f"2_ai-{source}-annogroup_membership.tsv"
+        source_dir = annogroups_dir / species_set_name / source
+        membership_path = source_dir / f"2_ai-{source}-annogroup_membership.tsv"
+        map_path = source_dir / f"2_ai-{source}-annogroup_map.tsv"
         if not membership_path.is_file():
             print( f"CRITICAL ERROR: annogroup membership not found for source '{source}': {membership_path}", file = sys.stderr )
             print( "  Remove the source from annogroup_sources, or run the annogroups subproject for it.", file = sys.stderr )
             sys.exit( 1 )
+        if not map_path.is_file():
+            print( f"CRITICAL ERROR: annogroup map not found for source '{source}': {map_path}", file = sys.stderr )
+            sys.exit( 1 )
         annogroup_membership_paths[ source ] = membership_path
+        annogroup_map_paths[ source ] = map_path
+
+    run_when = datetime.now()
+    timestamp_suffix = U.filename_timestamp_suffix( run_when )
+    print( f"[001] run timestamp suffix: {timestamp_suffix}" )
 
     # ---- GLOBAL loads (once) ---------------------------------------------
     print( f"[001] loading orthogroups: {orthogroups_file}" )
@@ -394,7 +437,11 @@ def main():
     print( f"[001]   {len( proteins___orthogroups )} proteins in {len( orthogroups___member_counts )} orthogroups" )
 
     source___sequences___annogroups = {}
+    source___annogroup_ids___names = {}
     for source in annogroup_sources:
+        prefix = U.annogroup_prefix_for_source( source )
+        print( f"[001] loading annogroup map ({source}): {annogroup_map_paths[ source ]}" )
+        source___annogroup_ids___names[ source ] = load_annogroup_map( annogroup_map_paths[ source ], prefix )
         print( f"[001] loading annogroup membership ({source}): {annogroup_membership_paths[ source ]}" )
         source___sequences___annogroups[ source ] = load_annogroup_membership( annogroup_membership_paths[ source ] )
         print( f"[001]   {len( source___sequences___annogroups[ source ] )} sequences with {source} annogroups" )
@@ -420,6 +467,7 @@ def main():
 
     output_shared_dir = Path( args.output_dir ) / "1-output" / "_shared"
     output_shared_dir.mkdir( parents = True, exist_ok = True )
+    U.write_run_timestamp_pointer( output_shared_dir, timestamp_suffix )
 
     # Availability summary accumulator.
     availability_rows = []
@@ -457,7 +505,7 @@ def main():
         sequences___secretome = load_secretome_for_species( secretome_path ) if secretome_available else {}
         sequences___dark_status = load_dark_for_species( dark_path ) if dark_available else {}
 
-        output_table_path = output_shared_dir / f"{phyloname}-proteome_annotations-base.tsv"
+        output_table_path = output_shared_dir / U.build_timestamped_proteome_base_filename( phyloname, run_when )
         protein_count = 0
 
         with open( spine_file, 'r' ) as input_spine, open( output_table_path, 'w' ) as output_table:
@@ -507,16 +555,64 @@ def main():
                 # nr hits
                 top_nr_hits = sequences___nr_hits.get( sequence_identifier, U.NA )
 
-                # annotations_hmms
-                pfam_cell = semicolon_list_or_na( sequences___pfam.get( sequence_identifier, [] ) )
-                interpro_go_cell = comma_list_or_na( sequences___interpro_go.get( sequence_identifier, [] ) )
-                panther_go_cell = comma_list_or_na( sequences___panther_go.get( sequence_identifier, [] ) )
-                panther_family_cell = semicolon_list_or_na( sequences___panther.get( sequence_identifier, [] ) )
+                # annotations_hmms (four columns per type)
+                pfam_pairs = sequences___pfam.get( sequence_identifier, [] )
+                pfam_identifiers, pfam_names = sorted_identifier_name_lists( pfam_pairs )
+                pfam_cells = U.format_per_protein_annotation_columns(
+                    pfam_identifiers, pfam_names, source_available = hmms_available
+                )
 
-                # annogroups (membership union per source)
-                annogroup_pfam_cell = comma_list_or_na( sorted( set( source___sequences___annogroups.get( "pfam", {} ).get( sequence_identifier, [] ) ) ) )
-                annogroup_go_cell = comma_list_or_na( sorted( set( source___sequences___annogroups.get( "go", {} ).get( sequence_identifier, [] ) ) ) )
-                annogroup_panther_cell = comma_list_or_na( sorted( set( source___sequences___annogroups.get( "panther", {} ).get( sequence_identifier, [] ) ) ) )
+                interpro_pairs = sequences___interpro_go.get( sequence_identifier, [] )
+                interpro_identifiers, interpro_names = sorted_identifier_name_lists( interpro_pairs )
+                interpro_go_cells = U.format_per_protein_annotation_columns(
+                    interpro_identifiers, interpro_names, source_available = hmms_available
+                )
+
+                panther_go_pairs = sequences___panther_go.get( sequence_identifier, [] )
+                panther_go_identifiers, panther_go_names = sorted_identifier_name_lists( panther_go_pairs )
+                panther_go_cells = U.format_per_protein_annotation_columns(
+                    panther_go_identifiers, panther_go_names, source_available = hmms_available
+                )
+
+                panther_pairs = sequences___panther.get( sequence_identifier, [] )
+                panther_identifiers, panther_names = sorted_identifier_name_lists( panther_pairs )
+                panther_cells = U.format_per_protein_annotation_columns(
+                    panther_identifiers, panther_names, source_available = hmms_available
+                )
+
+                # annogroups (membership union per source; four columns each)
+                annogroup_pfam_ids = sorted_unique_strings(
+                    source___sequences___annogroups.get( "pfam", {} ).get( sequence_identifier, [] )
+                )
+                annogroup_pfam_names = [
+                    source___annogroup_ids___names[ "pfam" ][ annogroup_id ]
+                    for annogroup_id in annogroup_pfam_ids
+                ]
+                annogroup_pfam_cells = U.format_per_protein_annotation_columns(
+                    annogroup_pfam_ids, annogroup_pfam_names
+                )
+
+                annogroup_go_ids = sorted_unique_strings(
+                    source___sequences___annogroups.get( "go", {} ).get( sequence_identifier, [] )
+                )
+                annogroup_go_names = [
+                    source___annogroup_ids___names[ "go" ][ annogroup_id ]
+                    for annogroup_id in annogroup_go_ids
+                ]
+                annogroup_go_cells = U.format_per_protein_annotation_columns(
+                    annogroup_go_ids, annogroup_go_names
+                )
+
+                annogroup_panther_ids = sorted_unique_strings(
+                    source___sequences___annogroups.get( "panther", {} ).get( sequence_identifier, [] )
+                )
+                annogroup_panther_names = [
+                    source___annogroup_ids___names[ "panther" ][ annogroup_id ]
+                    for annogroup_id in annogroup_panther_ids
+                ]
+                annogroup_panther_cells = U.format_per_protein_annotation_columns(
+                    annogroup_panther_ids, annogroup_panther_names
+                )
 
                 # orthogroups
                 orthogroup_id = proteins___orthogroups.get( sequence_identifier )
@@ -537,9 +633,15 @@ def main():
                         sequence_identifier, ( U.NA, U.NA, U.NA )
                     )
 
-                # AGS memberships
-                gene_group_cell = comma_list_or_na( sorted( sequences___gene_groups.get( sequence_identifier, set() ) ) )
-                gene_family_cell = comma_list_or_na( sorted( sequences___gene_families.get( sequence_identifier, set() ) ) )
+                # AGS memberships (identifiers only; names intentionally blank)
+                gene_group_ids = sorted_unique_strings( sequences___gene_groups.get( sequence_identifier, set() ) )
+                gene_group_cells = U.format_per_protein_annotation_columns(
+                    gene_group_ids, names_blank = True
+                )
+                gene_family_ids = sorted_unique_strings( sequences___gene_families.get( sequence_identifier, set() ) )
+                gene_family_cells = U.format_per_protein_annotation_columns(
+                    gene_family_ids, names_blank = True
+                )
 
                 # dark
                 dark_status = sequences___dark_status.get( sequence_identifier, U.NA ) if dark_available else U.NA
@@ -559,14 +661,14 @@ def main():
                     hotspot_paralog_counts,
                     "yes" if hotspots_available else "no",
                     top_nr_hits,
-                    pfam_cell,
-                    interpro_go_cell,
-                    panther_go_cell,
-                    panther_family_cell,
+                    *pfam_cells,
+                    *interpro_go_cells,
+                    *panther_go_cells,
+                    *panther_cells,
                     "yes" if hmms_available else "no",
-                    annogroup_pfam_cell,
-                    annogroup_go_cell,
-                    annogroup_panther_cell,
+                    *annogroup_pfam_cells,
+                    *annogroup_go_cells,
+                    *annogroup_panther_cells,
                     orthogroup_id_cell,
                     orthogroup_member_count,
                     orthogroup_species_count,
@@ -574,8 +676,8 @@ def main():
                     secretome_probability,
                     secretome_localization,
                     "yes" if secretome_available else "no",
-                    gene_group_cell,
-                    gene_family_cell,
+                    *gene_group_cells,
+                    *gene_family_cells,
                     dark_status,
                     "yes" if dark_available else "no",
                 ]
@@ -605,7 +707,7 @@ def main():
         "Secretome_Available (yes if secretome evidence table present)",
         "Dark_Proteome_Available (yes if dark proteome table present)",
     ]
-    summary_path = output_shared_dir / "feature_availability_summary.tsv"
+    summary_path = output_shared_dir / U.build_timestamped_availability_summary_filename( run_when )
     with open( summary_path, 'w' ) as output_summary:
         output_summary.write( '\t'.join( summary_header ) + '\n' )
         for row in availability_rows:

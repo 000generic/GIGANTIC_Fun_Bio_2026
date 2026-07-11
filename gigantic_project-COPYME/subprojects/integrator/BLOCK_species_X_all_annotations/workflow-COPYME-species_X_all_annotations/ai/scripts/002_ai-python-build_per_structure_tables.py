@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-# AI: Claude Code | Opus 4.8 (1M context) | 2026 June 28 | Purpose: Phase 2 — for one species-tree structure, append orthogroup + annogroup OCL columns onto each per-species base table (full wide table per structure)
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 11 | Purpose: Phase 2 — for one species-tree structure, append orthogroup + annogroup OCL columns onto each per-species base table (full wide table per structure)
 # Human: Eric Edsinger
 
 """
@@ -132,10 +132,13 @@ def main():
             sys.exit( 1 )
 
     shared_dir = Path( args.output_dir ) / "1-output" / "_shared"
-    base_files = sorted( shared_dir.glob( "*-proteome_annotations-base.tsv" ) )
+    base_files = sorted( shared_dir.glob( "*-proteome_annotations-base*.tsv" ) )
     if not base_files:
         print( f"CRITICAL ERROR: no base tables in {shared_dir} — Script 001 must run first", file = sys.stderr )
         sys.exit( 1 )
+
+    timestamp_suffix = U.resolve_run_timestamp_suffix( shared_dir )
+    print( f"[002] {structure}: using run timestamp suffix {timestamp_suffix}" )
 
     print( f"[002] {structure}: loading orthogroup OCL summary" )
     orthogroups___ocl = load_orthogroup_ocl( orthogroups_summary_path )
@@ -152,14 +155,15 @@ def main():
     annogroup_id_unresolved = 0
 
     for base_file in base_files:
-        output_table_path = output_structure_dir / base_file.name.replace(
-            "-proteome_annotations-base.tsv", "-proteome_all_annotations.tsv"
+        phyloname = base_file.name.split( "-proteome_annotations-base" )[ 0 ]
+        output_table_path = output_structure_dir / (
+            f"{phyloname}-proteome_all_annotations{timestamp_suffix}.tsv"
         )
         with open( base_file, 'r' ) as input_base, open( output_table_path, 'w' ) as output_table:
             base_header_line = input_base.readline().rstrip( '\n' )
             header_ids___indices = U.build_header_index( base_header_line )
             index_orthogroup = header_ids___indices[ "Orthogroup_ID" ]
-            index_annogroup_pfam = header_ids___indices[ "Annogroups_Pfam" ]
+            index_annogroup_pfam = header_ids___indices[ "Annogroups_Pfam_Identifiers" ]
 
             output_table.write( base_header_line + '\t' + '\t'.join( OCL_HEADER_COLUMNS ) + '\n' )
 

@@ -78,6 +78,7 @@ process resolve_structures {
 
 process build_invariant_base {
     label 'local'
+    cache false
 
     output:
         val true, emit: ready
@@ -96,6 +97,7 @@ process build_invariant_base {
 
 process build_per_structure_tables {
     label 'local'
+    cache false
     tag "${structure}"
 
     input:
@@ -120,6 +122,7 @@ process build_per_structure_tables {
 
 process validate_results {
     label 'local'
+    cache false
 
     input:
         val all_structures_done
