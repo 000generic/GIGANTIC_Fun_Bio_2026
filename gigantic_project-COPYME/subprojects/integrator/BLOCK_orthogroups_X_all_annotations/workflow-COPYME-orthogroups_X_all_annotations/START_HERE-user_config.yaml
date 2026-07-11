@@ -13,7 +13,7 @@
 # AI: Claude (Cursor) | Opus 4.8 | 2026 July 10
 # Human: Eric Edsinger
 #
-# Builds ONE table with one row per OrthoHMM orthogroup, integrating SEVEN
+# Builds ONE table with one row per OrthoHMM orthogroup, integrating TEN
 # annotation types across all member sequences of each orthogroup. For every
 # annotation type the table reports FOUR columns:
 #     <Type>_Species_Count      non-redundant count of species (Genus_species)
@@ -24,6 +24,8 @@
 #
 # Annotation types (in output column order):
 #     Pfam, GO, PANTHER            (raw per-sequence HMM annotations)
+#     Annogroups_Pfam, Annogroups_GO, Annogroups_PANTHER
+#                                   (curated annogroups; ALL types; Annogroup_ID)
 #     Gene_Families, Gene_Groups   (membership by presence in curated AGS FASTAs)
 #     Dark_Proteome                (per-sequence DARK/ANNOTATED status; the Status
 #                                   values are the identifiers, the fired
@@ -60,6 +62,12 @@ inputs:
   interproscan_raw_dir: "../../../annotations_hmms/output_to_input/BLOCK_interproscan"
   # GO id -> name lookup (header: GO_ID, GO_Name, GO_Namespace, Is_Obsolete, Is_Primary_ID)
   go_id_to_name: "../../../annotations_hmms/output_to_input/GO_reference/go_id_to_name.tsv"
+
+  # --- Annogroups (curated; ALL types; identifier = Annogroup_ID) ---
+  # Per source: <annogroups_dir>/<species_set>/<source>/
+  #   2_ai-<source>-annogroup_map.tsv
+  #   2_ai-<source>-annogroup_membership.tsv
+  annogroups_dir: "../../../annogroups/output_to_input/BLOCK_build_annogroups"
 
   # --- Gene families / gene groups (membership via AGS FASTA headers) ---
   # Each family: <gene_families_dir>/<family_slug>/**/16_ai-ags-*.aa ; FASTA
@@ -100,6 +108,13 @@ hmm_annotation_sources:
   - "go"
   - "panther"
 
+# Annogroup sources to aggregate (ALL annogroup types per source), IN OUTPUT
+# COLUMN ORDER (immediately after the raw HMM sources above).
+annogroup_sources:
+  - "pfam"
+  - "go"
+  - "panther"
+
 # Output configuration
 output:
   #   OUTPUT_pipeline/1-output/  the integrated table (headline deliverable)
@@ -110,9 +125,9 @@ output:
 # Computational Resources
 # =============================================================================
 # The build holds the protein->orthogroup map (~1.4M members) plus per-sequence
-# lookups for all seven annotation types (Pfam/GO/PANTHER raw files, inverted AGS
-# for ~76 families + ~2,060 gene groups, dark proteome, hotspots). Give it
-# generous memory and time (heavier than the leonid block).
+# lookups for all ten annotation types (Pfam/GO/PANTHER raw files, annogroups
+# membership for three sources, inverted AGS for ~76 families + ~2,060 gene groups,
+# dark proteome, hotspots). Give it generous memory and time (heavier than the leonid block).
 cpus: 4
 memory_gb: 64
 time_hours: 12

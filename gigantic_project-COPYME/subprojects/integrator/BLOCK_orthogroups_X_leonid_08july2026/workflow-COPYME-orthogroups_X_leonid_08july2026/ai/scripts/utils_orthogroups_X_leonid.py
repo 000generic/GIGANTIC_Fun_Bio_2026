@@ -112,3 +112,31 @@ def structure_number( structure_id: str ) -> str:
     if '_' in structure_id:
         return structure_id.rsplit( '_', 1 )[ 1 ]
     return structure_id
+
+
+# Annogroup source -> output column prefix (pfam/go/panther membership from annogroups subproject).
+ANNOGROUP_SOURCE_PREFIXES = {
+    "pfam": "Annogroups_Pfam",
+    "go": "Annogroups_GO",
+    "panther": "Annogroups_PANTHER",
+}
+
+
+def annogroup_prefix_for_source( source: str ) -> str:
+    """Map annogroups subproject source name to the four-column output prefix."""
+    return ANNOGROUP_SOURCE_PREFIXES.get( source, f"Annogroups_{source.capitalize()}" )
+
+
+def annogroup_name_from_map_fields( annogroup_type: str, annotation_definitions: str ) -> str:
+    """
+    Human-readable annogroup name from the annogroup MAP row.
+
+    Uses Annotation_Definitions when present (feature/combination/architecture).
+    Absent-type rows use a fixed label because definitions are empty.
+    """
+    definitions = annotation_definitions.strip()
+    if definitions:
+        return definitions
+    if annogroup_type == "absent":
+        return "Absent from genome"
+    return annogroup_type

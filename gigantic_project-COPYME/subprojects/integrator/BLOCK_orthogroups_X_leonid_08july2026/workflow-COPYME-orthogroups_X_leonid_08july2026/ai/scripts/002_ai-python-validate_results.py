@@ -60,6 +60,7 @@ def main():
     config = U.load_config( args.config )
     workflow_root = U.workflow_root_from_output_dir( args.output_dir )
     annotation_sources = config[ "annotation_sources" ]
+    annogroup_sources = config.get( "annogroup_sources", [ "pfam", "go", "panther" ] )
     orthogroups_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "orthogroups_file" ] )
 
     output_base = Path( args.output_dir )
@@ -105,6 +106,14 @@ def main():
         for accession_index, name_index in source_indices.values():
             fixed_and_annotation.add( accession_index )
             fixed_and_annotation.add( name_index )
+        for annogroup_source in annogroup_sources:
+            prefix = U.annogroup_prefix_for_source( annogroup_source )
+            fixed_and_annotation.update( [
+                header_ids___indices[ f"{prefix}_Species_Count" ],
+                header_ids___indices[ f"{prefix}_Sequence_Count" ],
+                header_ids___indices[ f"{prefix}_Identifiers" ],
+                header_ids___indices[ f"{prefix}_Names" ],
+            ] )
 
         # clade columns = everything else; tips vs full-coverage from header text
         tip_column_indices = []
@@ -177,6 +186,30 @@ def main():
                 if accessions != sorted( accessions ):
                     failures.append( f"{og_id}: {source} accessions not sorted" )
 
+            for annogroup_source in annogroup_sources:
+                prefix = U.annogroup_prefix_for_source( annogroup_source )
+                species_index = header_ids___indices[ f"{prefix}_Species_Count" ]
+                sequence_index = header_ids___indices[ f"{prefix}_Sequence_Count" ]
+                identifiers_index = header_ids___indices[ f"{prefix}_Identifiers" ]
+                names_index = header_ids___indices[ f"{prefix}_Names" ]
+                species_count = int( parts[ species_index ] ) if parts[ species_index ].lstrip( '-' ).isdigit() else -1
+                sequence_count = int( parts[ sequence_index ] ) if parts[ sequence_index ].lstrip( '-' ).isdigit() else -1
+                identifiers = [ token for token in parts[ identifiers_index ].split( U.DELIM ) if token ]
+                names = [ token for token in parts[ names_index ].split( U.NAME_DELIM ) if token ] if parts[ names_index ] else []
+                if sequence_count < 0 or sequence_count > member_count:
+                    failures.append( f"{og_id}: {prefix}_Sequence_Count {sequence_count} out of range [0, {member_count}]" )
+                if species_count < 0 or species_count > sequence_count:
+                    failures.append( f"{og_id}: {prefix}_Species_Count {species_count} out of range [0, {sequence_count}]" )
+                if identifiers != sorted( identifiers ):
+                    failures.append( f"{og_id}: {prefix}_Identifiers not sorted" )
+                if len( identifiers ) != len( set( identifiers ) ):
+                    failures.append( f"{og_id}: {prefix}_Identifiers contain duplicates" )
+                if ( sequence_count == 0 ) != ( len( identifiers ) == 0 ):
+                    failures.append( f"{og_id}: {prefix} coverage inconsistency: Sequence_Count {sequence_count} "
+                                     f"vs {len( identifiers )} identifier(s)" )
+                if len( identifiers ) != len( names ):
+                    failures.append( f"{og_id}: {prefix} #identifiers {len( identifiers )} != #names {len( names )}" )
+
             if len( failures ) > 200:
                 failures.append( "... (further failures suppressed; fix the above first)" )
                 break
@@ -201,6 +234,7 @@ def main():
         f"Full-coverage (root) clade columns: {len( full_coverage_indices )}",
         f"Total clade columns: {len( clade_column_indices )}",
         f"Annotation sources: {', '.join( annotation_sources )}",
+        f"Annogroup sources: {', '.join( annogroup_sources )}",
         "",
         "## Named checks",
         "",

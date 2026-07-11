@@ -20,7 +20,8 @@ orthogroups input row count (so a bug in 001 cannot hide behind shared code):
     - every full-coverage clade column == Member_Sequence_Count
     - every clade column value is between 0 and Member_Sequence_Count (inclusive)
 
-  Per annotation type (Pfam, GO, PANTHER, Gene_Families, Gene_Groups,
+  Per annotation type (Pfam, GO, PANTHER, Annogroups_Pfam, Annogroups_GO,
+                       Annogroups_PANTHER, Gene_Families, Gene_Groups,
                        Dark_Proteome, Hotspots)
     - <Type>_Sequence_Count in [0, Member_Sequence_Count]
     - <Type>_Species_Count in [0, <Type>_Sequence_Count]
@@ -45,6 +46,7 @@ import utils_orthogroups_X_all_annotations as U
 NAMES_BLANK_PREFIXES = { "Hotspots" }
 HMM_DISPLAY = { "pfam": "Pfam", "go": "GO", "panther": "PANTHER" }
 EXTRA_PREFIXES = [ "Gene_Families", "Gene_Groups", "Dark_Proteome", "Hotspots" ]
+ANNOGROUP_PREFIXES = [ "Annogroups_Pfam", "Annogroups_GO", "Annogroups_PANTHER" ]
 
 
 def count_input_orthogroups( orthogroups_path: Path ) -> int:
@@ -75,9 +77,14 @@ def main():
     config = U.load_config( args.config )
     workflow_root = U.workflow_root_from_output_dir( args.output_dir )
     hmm_sources = config[ "hmm_annotation_sources" ]
+    annogroup_sources = config.get( "annogroup_sources", [ "pfam", "go", "panther" ] )
     orthogroups_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "orthogroups_file" ] )
 
-    type_prefixes = [ HMM_DISPLAY.get( source, source.capitalize() ) for source in hmm_sources ] + EXTRA_PREFIXES
+    type_prefixes = (
+        [ HMM_DISPLAY.get( source, source.capitalize() ) for source in hmm_sources ]
+        + [ U.annogroup_prefix_for_source( source ) for source in annogroup_sources ]
+        + EXTRA_PREFIXES
+    )
 
     output_base = Path( args.output_dir )
     table_path = output_base / "1-output" / "1_ai-orthogroups_X_all_annotations.tsv"
@@ -139,7 +146,7 @@ def main():
         check( number_of_tips > 0, "Tip (species) columns present", f"found {number_of_tips}" )
         check( len( full_coverage_indices ) > 0, "At least one full-coverage (root) clade column",
                f"found {len( full_coverage_indices )}" )
-        check( len( type_indices ) == len( type_prefixes ), "All seven annotation types present",
+        check( len( type_indices ) == len( type_prefixes ), "All ten annotation types present",
                f"found {len( type_indices )} of {len( type_prefixes )}" )
 
         seen_orthogroups = set()

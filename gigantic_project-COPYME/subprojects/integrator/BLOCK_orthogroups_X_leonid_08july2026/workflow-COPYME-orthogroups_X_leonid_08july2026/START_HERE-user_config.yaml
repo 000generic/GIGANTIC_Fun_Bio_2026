@@ -17,6 +17,7 @@
 #   Orthogroup_ID | Sequence_IDs | Member_Sequence_Count | Is_Singleton
 #   | Pfam_Accessions | Pfam_Names | GO_Accessions | GO_Names
 #   | PANTHER_Accessions | PANTHER_Names
+#   | Annogroups_Pfam / Annogroups_GO / Annogroups_PANTHER (4 cols each)
 #   | <one column per non-redundant species-tree clade/species: member counts>
 #
 # The species-tree deconvolution columns are the UNION of clades (internal nodes
@@ -38,6 +39,13 @@ species_set_name: "species70"
 # COLUMN ORDER. Each becomes a paired <Display>_Accessions / <Display>_Names
 # column. These are annogroups subproject SOURCE names.
 annotation_sources:
+  - "pfam"
+  - "go"
+  - "panther"
+
+# Annogroup sources (ALL annogroup types; Annogroup_ID identifiers), IN OUTPUT
+# COLUMN ORDER — immediately after the feature-accession columns above.
+annogroup_sources:
   - "pfam"
   - "go"
   - "panther"
@@ -92,8 +100,8 @@ time_hours: 8
 execution_mode: "slurm"
 
 # SLURM settings (only used when execution_mode is "slurm")
-slurm_account: "your_account"
-slurm_qos: "your_qos"
+slurm_account: "moroz"
+slurm_qos: "moroz"
 
 # =============================================================================
 # Parallelism Mode  (this BLOCK has no fan-out; "local" is the natural choice)

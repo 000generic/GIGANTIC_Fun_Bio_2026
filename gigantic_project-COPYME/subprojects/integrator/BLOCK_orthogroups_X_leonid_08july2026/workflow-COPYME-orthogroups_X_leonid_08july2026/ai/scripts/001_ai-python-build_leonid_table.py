@@ -17,6 +17,9 @@ Each row is ONE OrthoHMM orthogroup. Columns, in order:
   GO_Names                         ' // '-delimited names (aligned to accessions)
   PANTHER_Accessions               comma-delimited non-redundant PANTHER accessions
   PANTHER_Names                    ' // '-delimited names (aligned to accessions)
+  Annogroups_Pfam (4 cols)         species/sequence counts + Annogroup_IDs + names
+  Annogroups_GO (4 cols)           same pattern (ALL annogroup types)
+  Annogroups_PANTHER (4 cols)      same pattern (ALL annogroup types)
   <clade / species columns...>     species-tree deconvolution (see below)
 
 Species-tree deconvolution
@@ -35,11 +38,13 @@ selected structures the clade appears in. Column order: largest clade (root) -> 
 
 Annotation source
 -----------------
-Pfam / GO / PANTHER come from the validated `annogroups` subproject FEATURE-type
-membership (one feature annogroup per distinct accession a sequence carries), keyed on
-the full GIGANTIC sequence identifier (identical to the orthogroup member IDs). Names
-come from the matching annogroup MAP. A sequence with no feature for a source simply
-contributes nothing to that column (empty cell) — the correct non-redundant result.
+Pfam / GO / PANTHER accessions come from the validated `annogroups` subproject
+FEATURE-type membership (one feature annogroup per distinct accession a sequence
+carries), keyed on the full GIGANTIC sequence identifier.
+
+Annogroups_Pfam / Annogroups_GO / Annogroups_PANTHER add curated annogroup
+membership (ALL types: feature, combination, architecture, absent) with
+Annogroup_ID as the identifier and Annotation_Definitions as the name.
 
 Fail-fast (§36): exits 1 if any input is missing; if a Rule-6 violation is seen (a
 clade_id_name with different species across the selected structures); if a member's
@@ -56,6 +61,32 @@ from pathlib import Path
 
 sys.path.insert( 0, str( Path( __file__ ).parent ) )
 import utils_orthogroups_X_leonid as U
+
+
+def guard_name( label: str, identifier: str, name: str ):
+    if U.NAME_DELIM in name:
+        print( f"CRITICAL ERROR: {label} name for identifier {identifier} contains the NAME-column "
+               f"delimiter {U.NAME_DELIM!r} and would corrupt the *_Names list: {name!r}", file = sys.stderr )
+        sys.exit( 1 )
+
+
+def new_annogroup_feature( prefix: str, label: str ) -> dict:
+    return {
+        "prefix": prefix,
+        "label": label,
+        "orthogroups___identifiers": defaultdict( set ),
+        "orthogroups___sequences": defaultdict( set ),
+        "orthogroups___species": defaultdict( set ),
+        "identifiers___names": {},
+    }
+
+
+def add_annogroup_annotation( feature: dict, og_id: str, sequence_id: str, genus_species: str,
+                              identifier: str, name: str ):
+    feature[ "orthogroups___identifiers" ][ og_id ].add( identifier )
+    feature[ "orthogroups___sequences" ][ og_id ].add( sequence_id )
+    feature[ "orthogroups___species" ][ og_id ].add( genus_species )
+    feature[ "identifiers___names" ][ identifier ] = name
 
 
 # ---------------------------------------------------------------------------
@@ -287,6 +318,99 @@ def aggregate_source_accessions( membership_path: Path, source: str,
     return orthogroups___accessions
 
 
+def load_annogroup_map( map_path: Path, source_label: str ) -> dict:
+    annogroup_ids___names = {}
+    with open( map_path, 'r' ) as input_map:
+        header_ids___indices = U.build_header_index( input_map.readline() )
+        index_annogroup = header_ids___indices[ "Annogroup_ID" ]
+        index_type = header_ids___indices[ "Annogroup_Type" ]
+        index_definitions = header_ids___indices[ "Annotation_Definitions" ]
+        for line in input_map:
+            line = line.rstrip( '\n' )
+            if not line:
+                continue
+            parts = line.split( '\t' )
+            annogroup_id = parts[ index_annogroup ]
+            name = U.annogroup_name_from_map_fields(
+                parts[ index_type ],
+                parts[ index_definitions ] if index_definitions < len( parts ) else '',
+            )
+            guard_name( source_label, annogroup_id, name )
+            annogroup_ids___names[ annogroup_id ] = name
+    if not annogroup_ids___names:
+        print( f"CRITICAL ERROR: no annogroups parsed from {map_path}", file = sys.stderr )
+        sys.exit( 1 )
+    return annogroup_ids___names
+
+
+def aggregate_source_annogroups( membership_path: Path, source_label: str,
+                                 annogroup_ids___names: dict, sequences___orthogroups: dict,
+                                 missing_report_path: Path ) -> dict:
+    feature = new_annogroup_feature( source_label, source_label )
+    missing_sequences = []
+    with open( membership_path, 'r' ) as input_membership:
+        header_ids___indices = U.build_header_index( input_membership.readline() )
+        index_sequence = header_ids___indices[ "Sequence_Identifier" ]
+        index_annogroup = header_ids___indices[ "Annogroup_ID" ]
+        for line in input_membership:
+            line = line.rstrip( '\n' )
+            if not line:
+                continue
+            parts = line.split( '\t' )
+            sequence_id = parts[ index_sequence ]
+            annogroup_id = parts[ index_annogroup ]
+            og_id = sequences___orthogroups.get( sequence_id )
+            if og_id is None:
+                if len( missing_sequences ) < 100:
+                    missing_sequences.append( sequence_id )
+                else:
+                    missing_sequences.append( None )
+                continue
+            if annogroup_id not in annogroup_ids___names:
+                print( f"CRITICAL ERROR: {source_label} membership annogroup {annogroup_id} has no "
+                       f"name in the annogroup map -- map/membership mismatch", file = sys.stderr )
+                sys.exit( 1 )
+            genus_species = U.genus_species_from_full_gigantic_id( sequence_id )
+            add_annogroup_annotation(
+                feature, og_id, sequence_id, genus_species, annogroup_id,
+                annogroup_ids___names[ annogroup_id ],
+            )
+
+    if missing_sequences:
+        real_missing = [ sequence_id for sequence_id in missing_sequences if sequence_id is not None ]
+        overflow = missing_sequences.count( None )
+        missing_report_path.parent.mkdir( parents = True, exist_ok = True )
+        with open( missing_report_path, 'w' ) as output_missing:
+            output_missing.write( "Sequence_Identifier (annogroup membership sequence absent from the orthogroups table)\n" )
+            for sequence_id in real_missing:
+                output_missing.write( sequence_id + '\n' )
+        print( f"CRITICAL ERROR: {source_label} has {len( real_missing ) + overflow} annogroup membership "
+               f"sequence(s) absent from the orthogroups table -- their annotations would be silently dropped. "
+               f"First offenders written to {missing_report_path}", file = sys.stderr )
+        sys.exit( 1 )
+    return feature
+
+
+def annogroup_feature_headers( feature: dict ) -> list:
+    prefix = feature[ "prefix" ]
+    label = feature[ "label" ]
+    return [
+        f"{prefix}_Species_Count (non-redundant count of Genus_species among member sequences carrying at least one {label})",
+        f"{prefix}_Sequence_Count (count of member sequences carrying at least one {label})",
+        f"{prefix}_Identifiers (comma delimited non-redundant {label} identifiers across all member sequences)",
+        f"{prefix}_Names (' // ' delimited {label} names aligned to {prefix}_Identifiers; "
+        f"' // ' used because names may contain commas, semicolons, or pipes)",
+    ]
+
+
+def annogroup_feature_cells( feature: dict, og_id: str ) -> list:
+    identifiers = sorted( feature[ "orthogroups___identifiers" ].get( og_id, () ) )
+    sequence_count = len( feature[ "orthogroups___sequences" ].get( og_id, () ) )
+    species_count = len( feature[ "orthogroups___species" ].get( og_id, () ) )
+    names = U.NAME_DELIM.join( feature[ "identifiers___names" ][ identifier ] for identifier in identifiers )
+    return [ str( species_count ), str( sequence_count ), U.DELIM.join( identifiers ), names ]
+
+
 # ---------------------------------------------------------------------------
 # Self-documenting headers
 # ---------------------------------------------------------------------------
@@ -312,6 +436,7 @@ def main():
 
     species_set_name = config[ "species_set_name" ]
     annotation_sources = config[ "annotation_sources" ]
+    annogroup_sources = config.get( "annogroup_sources", [ "pfam", "go", "panther" ] )
     selected_structures = config[ "inputs" ][ "deconvolution_structures" ]
 
     orthogroups_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "orthogroups_file" ] )
@@ -366,6 +491,24 @@ def main():
         print( f"[001] {source}: {len( accessions___names )} feature accessions; "
                f"{annotated_orthogroups} orthogroups carry >=1 {source} annotation" )
 
+    annogroup_features = []
+    for source in annogroup_sources:
+        prefix = U.annogroup_prefix_for_source( source )
+        source_dir = annogroups_dir / species_set_name / source
+        map_path = source_dir / f"2_ai-{source}-annogroup_map.tsv"
+        membership_path = source_dir / f"2_ai-{source}-annogroup_membership.tsv"
+        for required in ( map_path, membership_path ):
+            if not required.is_file():
+                print( f"CRITICAL ERROR: required {source} annogroup input not found: {required}", file = sys.stderr )
+                sys.exit( 1 )
+        annogroup_ids___names = load_annogroup_map( map_path, prefix )
+        missing_report_path = output_dir / f"1_ai-{source}-annogroup_sequences_absent_from_orthogroups.tsv"
+        feature = aggregate_source_annogroups(
+            membership_path, prefix, annogroup_ids___names, sequences___orthogroups, missing_report_path )
+        annogroup_features.append( feature )
+        print( f"[001] {prefix}: {len( feature[ 'identifiers___names' ] )} annogroup identifiers; "
+               f"{len( feature[ 'orthogroups___identifiers' ] )} orthogroups carry >=1 annogroup" )
+
     # ---- header ------------------------------------------------------------
     header_columns = [
         "Orthogroup_ID (OrthoHMM orthogroup identifier)",
@@ -382,6 +525,8 @@ def main():
         header_columns.append(
             f"{display}_Names ('space slash slash space' delimited {display} names aligned to "
             f"{display}_Accessions; delimited by ' // ' because names may contain commas, semicolons, or pipes)" )
+    for feature in annogroup_features:
+        header_columns.extend( annogroup_feature_headers( feature ) )
     header_columns.extend(
         clade_header( clade, clades___descendant_count, clades___species, clades___structures, total_selected )
         for clade in union_ordered_clades )
@@ -426,6 +571,8 @@ def main():
                 names = [ sources___accession_names[ source ][ accession ] for accession in accessions ]
                 row.append( U.DELIM.join( accessions ) )
                 row.append( U.NAME_DELIM.join( names ) )
+            for feature in annogroup_features:
+                row.extend( annogroup_feature_cells( feature, og_id ) )
             row.extend( str( clades___counts.get( clade, 0 ) ) for clade in union_ordered_clades )
             output_table.write( '\t'.join( row ) + '\n' )
             rows_written += 1

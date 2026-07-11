@@ -12,15 +12,15 @@ Each row is ONE OrthoHMM orthogroup. Columns, in order:
   Member_Sequence_Count            integer
   Is_Singleton                     yes | no
 
-  For EACH of seven annotation types, four columns:
+  For EACH of ten annotation types, four columns:
     <Type>_Species_Count           non-redundant # Genus_species among member
                                    sequences carrying >=1 annotation of this type
     <Type>_Sequence_Count          # member sequences carrying >=1 annotation
     <Type>_Identifiers             comma-delimited non-redundant identifiers
     <Type>_Names                   ' // '-delimited names aligned to identifiers
 
-  Types (in order): Pfam, GO, PANTHER, Gene_Families, Gene_Groups,
-                    Dark_Proteome, Hotspots
+  Types (in order): Pfam, GO, PANTHER, Annogroups_Pfam, Annogroups_GO, Annogroups_PANTHER,
+                    Gene_Families, Gene_Groups, Dark_Proteome, Hotspots
 
   <clade / species columns...>     species-tree deconvolution (see below)
 
@@ -43,6 +43,12 @@ GO      : annotations_hmms BLOCK_interproscan/<phyloname>_interproscan_results.t
           Names from GO_reference/go_id_to_name.tsv. Join = full GIGANTIC id.
 PANTHER : BLOCK_interproscan_parsed/panther/panther-<phyloname>.tsv
           (Protein_Identifier -> Accession PTHR##### + Description). Join = full id.
+Annogroups_Pfam / Annogroups_GO / Annogroups_PANTHER :
+          annogroups BLOCK_build_annogroups/<species_set>/<source>/
+          2_ai-<source>-annogroup_map.tsv + 2_ai-<source>-annogroup_membership.tsv
+          (ALL annogroup types: feature, combination, architecture, absent).
+          Identifier = Annogroup_ID; name from Annotation_Definitions (or fixed
+          label for absent). Join = full GIGANTIC id. STRICT fail-fast.
 Gene_Families : invert AGS FASTAs trees_gene_families/output_to_input/<slug>/**/16_ai-ags-*.aa
           id = family slug; name = family slug (no central name table). Join = full id.
 Gene_Groups   : invert AGS trees_gene_groups/output_to_input/gene_groups-*/**/gene_group-<san>/**/16_ai-ags-*.aa
@@ -428,6 +434,86 @@ def load_go_raw( feature: dict, raw_dir: Path, go_id_to_name: dict,
 
 
 # ===========================================================================
+# Loaders — Annogroups (pfam/go/panther; ALL types; STRICT fail-fast)
+# ===========================================================================
+def load_annogroup_map( map_path: Path, source_label: str ) -> dict:
+    """Build { Annogroup_ID: name } for every row in the annogroup MAP."""
+    annogroup_ids___names = {}
+    # Annogroup_ID	Source	Annogroup_Type	Defining_Features	Annotation_Definitions	...
+    # annogroup_pfam_PF00001	pfam	feature	PF00001	7 transmembrane receptor (rhodopsin family) ==PF00001	...
+    with open( map_path, 'r' ) as input_map:
+        header_ids___indices = U.build_header_index( input_map.readline() )
+        index_annogroup = header_ids___indices[ "Annogroup_ID" ]
+        index_type = header_ids___indices[ "Annogroup_Type" ]
+        index_definitions = header_ids___indices[ "Annotation_Definitions" ]
+        for line in input_map:
+            line = line.rstrip( '\n' )
+            if not line:
+                continue
+            parts = line.split( '\t' )
+            annogroup_id = parts[ index_annogroup ]
+            annogroup_type = parts[ index_type ]
+            definitions = parts[ index_definitions ] if index_definitions < len( parts ) else ''
+            name = U.annogroup_name_from_map_fields( annogroup_type, definitions )
+            guard_name( source_label, annogroup_id, name )
+            annogroup_ids___names[ annogroup_id ] = name
+    if not annogroup_ids___names:
+        print( f"CRITICAL ERROR: no annogroups parsed from {map_path}", file = sys.stderr )
+        sys.exit( 1 )
+    return annogroup_ids___names
+
+
+def load_annogroups_membership( feature: dict, membership_path: Path, source_label: str,
+                                annogroup_ids___names: dict, sequences___orthogroups: dict,
+                                output_dir: Path ):
+    """
+    STRICT fail-fast: any membership sequence absent from orthogroups means a
+    silently dropped annotation -> write offenders and exit 1.
+    """
+    missing_sequences = []
+    # Sequence_Identifier	Genus_Species	Annogroup_ID	Annogroup_Type	Member_Architecture_Coordinates ...
+    with open( membership_path, 'r' ) as input_membership:
+        header_ids___indices = U.build_header_index( input_membership.readline() )
+        index_sequence = header_ids___indices[ "Sequence_Identifier" ]
+        index_annogroup = header_ids___indices[ "Annogroup_ID" ]
+        for line in input_membership:
+            line = line.rstrip( '\n' )
+            if not line:
+                continue
+            parts = line.split( '\t' )
+            sequence_id = parts[ index_sequence ]
+            annogroup_id = parts[ index_annogroup ]
+            og_id = sequences___orthogroups.get( sequence_id )
+            if og_id is None:
+                if len( missing_sequences ) < 100:
+                    missing_sequences.append( sequence_id )
+                else:
+                    missing_sequences.append( None )
+                continue
+            if annogroup_id not in annogroup_ids___names:
+                print( f"CRITICAL ERROR: {source_label} membership annogroup {annogroup_id} has no "
+                       f"name in the annogroup map -- map/membership mismatch", file = sys.stderr )
+                sys.exit( 1 )
+            name = annogroup_ids___names[ annogroup_id ]
+            genus_species = U.genus_species_from_full_gigantic_id( sequence_id )
+            add_annotation( feature, og_id, sequence_id, genus_species, annogroup_id, name )
+
+    if missing_sequences:
+        real_missing = [ sequence_id for sequence_id in missing_sequences if sequence_id is not None ]
+        overflow = missing_sequences.count( None )
+        source_slug = source_label.lower().replace( ' ', '_' )
+        missing_report_path = output_dir / f"1_ai-{source_slug}-annogroup_sequences_absent_from_orthogroups.tsv"
+        with open( missing_report_path, 'w' ) as output_missing:
+            output_missing.write( "Sequence_Identifier (annogroup membership sequence absent from the orthogroups table)\n" )
+            for sequence_id in real_missing:
+                output_missing.write( sequence_id + '\n' )
+        print( f"CRITICAL ERROR: {source_label} has {len( real_missing ) + overflow} annogroup membership "
+               f"sequence(s) absent from the orthogroups table -- their annotations would be silently dropped. "
+               f"First offenders written to {missing_report_path}", file = sys.stderr )
+        sys.exit( 1 )
+
+
+# ===========================================================================
 # Loaders — Gene families / gene groups (invert AGS FASTAs; LOG-AND-SKIP)
 # ===========================================================================
 def iter_fasta_member_headers( fasta_path: Path ):
@@ -678,6 +764,8 @@ def main():
     workflow_root = U.workflow_root_from_output_dir( args.output_dir )
 
     hmm_sources = config[ "hmm_annotation_sources" ]
+    annogroup_sources = config.get( "annogroup_sources", [ "pfam", "go", "panther" ] )
+    species_set_name = config[ "species_set_name" ]
     selected_structures = config[ "inputs" ][ "deconvolution_structures" ]
     inputs = config[ "inputs" ]
 
@@ -689,6 +777,7 @@ def main():
     interproscan_parsed_dir = resolve( "interproscan_parsed_dir" )
     interproscan_raw_dir = resolve( "interproscan_raw_dir" )
     go_id_to_name_path = resolve( "go_id_to_name" )
+    annogroups_dir = resolve( "annogroups_dir" )
     gene_families_dir = resolve( "gene_families_dir" )
     gene_groups_dir = resolve( "gene_groups_dir" )
     gene_groups_hgnc_metadata = resolve( "gene_groups_hgnc_metadata" )
@@ -704,6 +793,9 @@ def main():
         if not required.is_file():
             print( f"CRITICAL ERROR: required input not found: {required}", file = sys.stderr )
             sys.exit( 1 )
+    if not annogroups_dir.is_dir():
+        print( f"CRITICAL ERROR: annogroups directory not found: {annogroups_dir}", file = sys.stderr )
+        sys.exit( 1 )
 
     # ---- clades ------------------------------------------------------------
     ( clades___species, clades___descendant_count, clades___structures, tip_species,
@@ -738,6 +830,25 @@ def main():
         features.append( feature )
         print( f"[001] {display}: {len( feature[ 'orthogroups___identifiers' ] )} orthogroups carry >=1 annotation; "
                f"{len( feature[ 'identifiers___names' ] )} distinct identifiers" )
+
+    annogroup_display = { "pfam": "pfam annogroup", "go": "go annogroup", "panther": "panther annogroup" }
+    for source in annogroup_sources:
+        prefix = U.annogroup_prefix_for_source( source )
+        label = annogroup_display.get( source, f"{source} annogroup" )
+        source_dir = annogroups_dir / species_set_name / source
+        map_path = source_dir / f"2_ai-{source}-annogroup_map.tsv"
+        membership_path = source_dir / f"2_ai-{source}-annogroup_membership.tsv"
+        for required in ( map_path, membership_path ):
+            if not required.is_file():
+                print( f"CRITICAL ERROR: required {source} annogroup input not found: {required}", file = sys.stderr )
+                sys.exit( 1 )
+        feature = new_feature( prefix, label )
+        annogroup_ids___names = load_annogroup_map( map_path, prefix )
+        load_annogroups_membership(
+            feature, membership_path, prefix, annogroup_ids___names, sequences___orthogroups, output_dir )
+        features.append( feature )
+        print( f"[001] {prefix}: {len( feature[ 'orthogroups___identifiers' ] )} orthogroups carry >=1 annogroup; "
+               f"{len( feature[ 'identifiers___names' ] )} distinct annogroup identifiers" )
 
     feature_gene_families = new_feature( "Gene_Families", "gene family" )
     load_gene_families( feature_gene_families, gene_families_dir, sequences___orthogroups )

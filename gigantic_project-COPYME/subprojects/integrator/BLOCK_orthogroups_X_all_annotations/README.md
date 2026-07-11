@@ -7,7 +7,7 @@ Purpose: User-facing overview of BLOCK_orthogroups_X_all_annotations.
 # BLOCK_orthogroups_X_all_annotations
 
 An integration BLOCK that produces a **single table with one row per OrthoHMM
-orthogroup**, combining the orthogroup's member sequences with **seven annotation
+orthogroup**, combining the orthogroup's member sequences with **ten annotation
 types** and a **species-tree deconvolution** across structures 001, 003, 031, 032.
 
 ## What it produces
@@ -23,8 +23,9 @@ types** and a **species-tree deconvolution** across structures 001, 003, 031, 03
 | **per type ×7** | `<Type>_Species_Count`, `<Type>_Sequence_Count`, `<Type>_Identifiers` (comma), `<Type>_Names` (` // `) |
 | …clade / species columns… | one column per **non-redundant** clade or species across structures 001/003/031/032; each cell = count of member sequences within that clade |
 
-The seven annotation types (in column order): **Pfam, GO, PANTHER, Gene_Families,
-Gene_Groups, Dark_Proteome, Hotspots**. For each type:
+The seven annotation types (in column order): **Pfam, GO, PANTHER, Annogroups_Pfam,
+Annogroups_GO, Annogroups_PANTHER, Gene_Families, Gene_Groups, Dark_Proteome,
+Hotspots**. For each type:
 
 - `<Type>_Species_Count` — non-redundant number of species (Genus_species) among
   member sequences carrying ≥1 annotation of that type
@@ -39,6 +40,7 @@ Gene_Groups, Dark_Proteome, Hotspots**. For each type:
 | Pfam | `PF#####` | domain description | full GIGANTIC sequence id |
 | GO | `GO:#######` | GO term name | full GIGANTIC sequence id |
 | PANTHER | `PTHR#####` | family description | full GIGANTIC sequence id |
+| Annogroups_Pfam / GO / PANTHER | `annogroup_<source>_...` | Annotation_Definitions (or fixed absent label) | full GIGANTIC sequence id (ALL annogroup types) |
 | Gene_Families | family slug | family slug (no separate name table) | full GIGANTIC sequence id (in AGS FASTA) |
 | Gene_Groups | `gg<N>` (or `snap_family`) | HGNC group name | full GIGANTIC sequence id (in AGS FASTA) |
 | Dark_Proteome | `DARK` / `ANNOTATED` | fired annotation-source axes (or `none`) | full GIGANTIC sequence id |
