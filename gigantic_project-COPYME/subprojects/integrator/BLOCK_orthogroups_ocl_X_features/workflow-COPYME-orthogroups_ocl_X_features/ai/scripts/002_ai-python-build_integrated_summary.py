@@ -74,7 +74,9 @@ def main():
     input_ocl_dir = U.resolve_input_path( workflow_root, config[ "inputs" ][ "ocl_orthogroups_dir" ] )
 
     input_ocl_summary_path = input_ocl_dir / structure_name / "4_ai-orthogroups-complete_ocl_summary.tsv"
-    input_lookup_path = Path( args.output_dir ) / "_shared" / "1-output" / "1_ai-gene_feature_lookup.tsv"
+    output_base = Path( args.output_dir )
+    input_lookup_path = U.resolve_timestamped_output_path(
+        output_base / "_shared" / "1-output", "1_ai-gene_feature_lookup", output_base )
 
     if not input_ocl_summary_path.is_file():
         print( f"CRITICAL ERROR: OCL summary not found for {structure_name}", file = sys.stderr )
@@ -91,7 +93,7 @@ def main():
 
     output_dir = Path( args.output_dir ) / structure_name / "2-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_summary_path = output_dir / f"2_ai-structure_{structure_id}_orthogroups-integrated_summary.tsv"
+    output_summary_path = U.timestamped_output_path( output_dir, "2_ai-orthogroups-integrated_summary", output_base )
 
     header_columns = [
         "Structure_ID (phylogenetic species tree structure identifier)",

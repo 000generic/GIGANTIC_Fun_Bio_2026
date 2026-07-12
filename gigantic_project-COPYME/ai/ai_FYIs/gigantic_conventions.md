@@ -6,6 +6,10 @@ This file grows as conventions surface during per-directory documentation review
 At the end of cleanup, this is the source for writing the top-level `GIGANTIC/` and
 `gigantic_project-COPYME/` README + AI_GUIDE pairs.
 
+**How to refer to conventions:** Each rule below is a **numbered section** (1–65).
+In READMEs and other docs, refer to a rule by its **title** or as **convention N**
+(e.g. "convention 2: `output_to_input/`"). Do not use the § symbol.
+
 ---
 
 ## 1. `research_notebook/` is a sandbox, outside GIGANTIC conventions — and there is ONE, at project root only
@@ -46,7 +50,7 @@ research_notebook/
 │   ├── subproject-phylonames/
 │   └── species70/              # or any user-defined organization
 └── research_ai/
-    ├── sessions/               # chat captures (per §9)
+    ├── sessions/               # chat captures (per convention 9)
     └── subproject-phylonames/  # AI-side per-subproject scratch (when needed)
 ```
 
@@ -71,6 +75,11 @@ specific outputs with downstream subprojects:
 
 Downstream subprojects always read from `<upstream_subproject>/output_to_input/`,
 never from inside an `OUTPUT_pipeline/` directly.
+
+**GIGANTIC v1.0**: real files in `OUTPUT_pipeline/` use **stable filenames**
+(convention 31). **GIGANTIC v2.0** will add optional run-date suffixes on archival
+outputs while keeping **stable symlink names** in `output_to_input/` — see
+convention 65.
 
 **Note on a deprecated pattern**: an older CLAUDE.md described an `OUTPUT_to_input/`
 (uppercase `O`) archival mirror inside each `workflow-RUN_N-*` directory. That
@@ -176,7 +185,7 @@ Nothing else inside `gigantic_project-COPYME/.claude/` ships. The
 un-ignore of just these three files at this one path.
 
 This exception exists because **Claude is the recommended AI for GIGANTIC** and
-**lossless session capture is a primary GIGANTIC feature** (see §9). Without
+**lossless session capture is a primary GIGANTIC feature** (see convention 9). Without
 the shipped hook config, each user would have to manually wire up capture in
 their renamed project copy — defeating the "fresh AI session in renamed
 project" model.
@@ -395,14 +404,14 @@ per-subproject. But anything the user themselves provides flows through
 All non-doc content inside `INPUT_user/` — at every depth, including
 subproject-specific subdirs like `INPUT_user/phylonames/user_phylonames.tsv`
 or `INPUT_user/genomic_resources/genomes/<species>.fasta` — is a **symlink**
-into `research_notebook/research_user/` (the user's sandbox per §1).
+into `research_notebook/research_user/` (the user's sandbox per convention 1).
 
 Use **relative** symlinks: `ln -srf <target> <link>` creates them
 automatically. Relative symlinks survive when the entire project is moved,
 copied to another machine, or archived. Absolute symlinks break.
 
 The user's actual files live in `research_notebook/research_user/`
-unstructured per §1; `INPUT_user/` exposes specific files to GIGANTIC via
+unstructured per convention 1; `INPUT_user/` exposes specific files to GIGANTIC via
 deliberate symlinks. The symlink graph of `INPUT_user/` is the complete
 catalog of what the project feeds into GIGANTIC.
 
@@ -429,7 +438,7 @@ doesn't fit existing locations, the convention is:
 3. Document the requirement in the subproject's own docs as well.
 4. Update `INPUT_user/README.md` if the new convention is broad.
 
-This is mirrored by §22 below: `ai/ai_FYIs/` uses similar subproject-first
+This is mirrored by convention 22 below: `ai/ai_FYIs/` uses similar subproject-first
 naming for related documents.
 
 ---
@@ -493,7 +502,7 @@ Files inside `ai/ai_FYIs/` follow this naming hierarchy:
 
 ## 23. NextFlow source files use `${projectDir}` for path construction
 
-The relative-path convention (§5) holds for NextFlow `.nf` files via the
+The relative-path convention (convention 5) holds for NextFlow `.nf` files via the
 `${projectDir}` idiom. `${projectDir}` is a NextFlow built-in that
 resolves to the absolute path of the directory containing the running
 `main.nf` at runtime.
@@ -511,7 +520,7 @@ publishDir "${projectDir}/../${params.output.base_dir}/1-output", mode: 'copy'
 
 Source stays portable (paths are relative to `projectDir`); resolved
 paths at runtime are absolute (and unique per workflow run). Both
-properties hold simultaneously — no exception to §5 is needed for
+properties hold simultaneously — no exception to convention 5 is needed for
 NextFlow.
 
 ---
@@ -534,20 +543,20 @@ All four are in `.gitignore`. When clearing a stuck run, deleting these
 
 ## 25. `research_user/` ships as empty directory; `research_ai/` ships with documentation
 
-Refines §1 (and applies only to the single project-root
+Refines convention 1 (and applies only to the single project-root
 `research_notebook/` — per-subproject `research_notebook/` directories
 are forbidden):
 
 - `research_notebook/research_user/` is the user's wild-west sandbox. The
   template ships only the empty directory (`.gitkeep` only — no README,
-  no scaffolding). Per §1, GIGANTIC never reaches into it; users
+  no scaffolding). Per convention 1, GIGANTIC never reaches into it; users
   organize however they want.
 - `research_notebook/research_ai/` is **GIGANTIC's own sandbox**.
   Documentation appropriate to AI infrastructure (capture system, etc.)
   ships here, including `README.md` and the `sessions/.gitkeep` so the
   capture destination is preserved.
 
-Captured session transcripts (per §9) land in
+Captured session transcripts (per convention 9) land in
 `research_notebook/research_ai/sessions/` and are gitignored as runtime
 content — they never ship.
 
@@ -644,14 +653,14 @@ authoritative list of GIGANTIC conventions. Other documents reference
 section numbers here rather than duplicating content:
 
 ```markdown
-See `ai/ai_FYIs/gigantic_conventions.md` §9 for the chat-as-research-notebook
+See `ai/ai_FYIs/gigantic_conventions.md` convention 9 for the chat-as-research-notebook
 architecture.
 ```
 
 When a convention is updated here, downstream references stay valid as
 long as they point at section numbers. **Don't renumber existing
 sections** — append new ones; if a section is genuinely deprecated, mark
-it `~~§N~~ DEPRECATED — see §M`.
+it `~~convention N~~ DEPRECATED — see convention M`.
 
 ---
 
@@ -846,7 +855,7 @@ subprojects of the project. There is no per-subproject server; subprojects
 publish into the single project-level server.
 
 The server is operated through a unified `RUN-start_server.sh` driver
-(§29) governed by `execution_mode` in `START_HERE-server_config.yaml`.
+(convention 29) governed by `execution_mode` in `START_HERE-server_config.yaml`.
 Full documentation lives in `server/README.md` (user-facing) and
 `server/AI_GUIDE.md` (operation + publishing workflow).
 
@@ -869,7 +878,7 @@ through a fixed interface:
   ```
   <subproject>/upload_to_server/
     └── STEP_<N>-<name>/         (or BLOCK_<name>/, or unit-name/)
-        └── workflow-RUN_<K>-<name>/   (canonical RUN per §39)
+        └── workflow-RUN_<K>-<name>/   (canonical RUN per convention 39)
             └── N-output/
                 └── <file>       (symlink to the actual output)
   ```
@@ -880,14 +889,14 @@ through a fixed interface:
   grouping by species set, by hypothesis, by deliverable type rather
   than by STEP).
 
-  Note distinction from `output_to_input/` (§2): `output_to_input/`
+  Note distinction from `output_to_input/` (convention 2): `output_to_input/`
   structure **mirrors producer paths** mandatorily (preserves provenance
   for downstream subprojects); `upload_to_server/` structure is for
   human collaborators and **can deviate** from producer paths when a
   different organization serves the user better.
 - Each canonical `workflow-RUN_*/` carries its own
   **`upload_manifest.tsv`** controlling which of its outputs publish
-  (one manifest per canonical RUN dir; see §39)
+  (one manifest per canonical RUN dir; see convention 39)
 - Each subproject has a **`RUN-update_upload_to_server.sh`** at
   subproject level that invokes the shared helper at
   `gigantic_project-COPYME/server/ai/update_upload_to_server.py`. The
@@ -897,7 +906,7 @@ through a fixed interface:
 - The server reads `upload_to_server/` symlinks transparently — **there
   is no copy or sync step**. Follow-the-symlink at HTTP request time.
 
-This parallels the `output_to_input/` symlink pattern (§2) but serves a
+This parallels the `output_to_input/` symlink pattern (convention 2) but serves a
 different consumer (the data server / collaborators, not downstream
 subprojects).
 
@@ -995,7 +1004,7 @@ scientific use case. Internal structure is **subproject-natural** — do
 not force a single shape on all subprojects. (Compare with the
 **interface layer** — `upload_to_server/`, `output_to_input/`,
 `RUN-update_upload_to_server.sh` at subproject root — which IS
-standardized per §2, §38, etc., regardless of internal type.)
+standardized per convention 2, convention 38, etc., regardless of internal type.)
 
 | Type | When to use | Internal layout | Examples |
 |------|-------------|-----------------|----------|
@@ -1015,14 +1024,14 @@ level. Don't invent custom types.
 - `<unit_prefix>-<unit_name>` for unit instances (e.g.,
   `gene_family-innexin_pannexin_channels`)
 - `workflow-COPYME-<descriptor>` for the workflow template inside any
-  STEP/BLOCK/unit (§35)
+  STEP/BLOCK/unit (convention 35)
 
 ---
 
 ## 42. "Where this fits" header on every doc
 
 Every `README.md` and `AI_GUIDE.md` opens with a short **"Where this fits"**
-block immediately after the AI-attribution comment block (§12), pointing
+block immediately after the AI-attribution comment block (convention 12), pointing
 the reader UP, DOWN, IN, and OUT:
 
 - **UP**: parent README + parent AI_GUIDE (one level up, and project root)
@@ -1070,7 +1079,7 @@ integration explicitly:
    `output_to_input/<path>/<file>`, NCBI / external data sources)?
 4. **OUT** — Does it name explicitly where this unit's outputs go
    (`output_to_input/<subdir>/`, `upload_to_server/`, listed
-   downstream consumer subprojects per §40)?
+   downstream consumer subprojects per convention 40)?
 
 A doc missing any axis is incomplete. Use the framework as a checklist
 during deep eval passes (it surfaced multiple integration gaps across
@@ -1122,14 +1131,14 @@ mark it explicitly as the audit-log final step.
 The script's role:
 - Records workflow name, subproject name, project name, status, timestamp
 - Writes to `ai/logs/run_YYYYMMDD_HHMMSS-<subproject>_success.log`
-- Is **per-run** — separate from project-wide chat captures (§9), which
+- Is **per-run** — separate from project-wide chat captures (convention 9), which
   live in `research_notebook/research_ai/sessions/`
 
 ---
 
 ## 46. Anti-pattern: nested `slurm:` block in `START_HERE-user_config.yaml`
 
-Pre-§29 templates carried a nested YAML block:
+Pre-convention 29 templates carried a nested YAML block:
 
 ```yaml
 slurm:
@@ -1141,7 +1150,7 @@ slurm:
   cpus: 1
 ```
 
-This is **dead code** — §29's unified `RUN-workflow.sh` driver reads
+This is **dead code** — convention 29's unified `RUN-workflow.sh` driver reads
 only the flat keys at the bottom of the YAML:
 
 ```yaml
@@ -1176,7 +1185,7 @@ what the workflow looked like when it executed. Reproducibility and the
 research-notebook nature of the project require those artifacts stay
 frozen.
 
-(See also: §39 canonical-RUN rule for publishing — only the canonical
+(See also: convention 39 canonical-RUN rule for publishing — only the canonical
 RUN gets a live `upload_manifest.tsv`; stale RUNs are left untouched.)
 
 ---
@@ -1184,7 +1193,7 @@ RUN gets a live `upload_manifest.tsv`; stale RUNs are left untouched.)
 ## 48. Quick Reference navigation table at top of every AI_GUIDE
 
 Every `AI_GUIDE.md` carries a navigation table near the top, after the
-AI-attribution block and the "Where this fits" block (§42), listing
+AI-attribution block and the "Where this fits" block (convention 42), listing
 **every related doc the reader might want next**:
 
 ```markdown
@@ -1193,14 +1202,14 @@ AI-attribution block and the "Where this fits" block (§42), listing
 | User needs... | Go to... |
 |---|---|
 | GIGANTIC overview | `../../AI_GUIDE.md` (project root) |
-| Conventions (§1–§58) | `../../ai/ai_FYIs/gigantic_conventions.md` |
+| Conventions (convention 1–convention 58) | `../../ai/ai_FYIs/gigantic_conventions.md` |
 | <subproject> concepts | This file |
 | <BLOCK or STEP> overview | `<BLOCK_or_STEP>/AI_GUIDE.md` |
 | Running the workflow | `<...>/workflow-COPYME-*/ai/AI_GUIDE.md` |
 | Downstream subprojects | `../<consumer>/AI_GUIDE.md` |
 ```
 
-The Quick Reference is **denser than "Where this fits"** (§42) — it's a
+The Quick Reference is **denser than "Where this fits"** (convention 42) — it's a
 full pointer-list for AI navigation, while "Where this fits" is a
 3-sentence orientation. They serve different purposes and **both
 appear** in every AI_GUIDE.
@@ -1251,7 +1260,7 @@ Adopted 2026-05-26 (commit `dbe8d89`) after renames of
 
 ## 50. Per-subproject `research_notebook/` migration procedure
 
-Per §1, per-subproject `research_notebook/` directories are forbidden;
+Per convention 1, per-subproject `research_notebook/` directories are forbidden;
 content belongs in the single project-root sandbox under
 `research_notebook/research_user/subproject-<name>/`. When deep-eval
 encounters a surviving per-subproject `research_notebook/`, migrate in this
@@ -1261,7 +1270,7 @@ order:
    `gigantic_project-COPYME/research_notebook/research_user/subproject-<name>/`
 2. **`git rm --cached`** any tracked files in the old `research_notebook/`
    (papers, summaries, manifests) — keeps them on disk, removes from index.
-   Tracked content there is anomalous per §25; untrack rather than carry
+   Tracked content there is anomalous per convention 25; untrack rather than carry
    forward.
 3. **`mv`** the remaining (already-untracked) directories and files to the
    destination via plain `mv` — gitignored at both old and new path.
@@ -1296,20 +1305,20 @@ Derive content from:
 - Sibling subprojects' docs for cross-reference targets
 
 Use the current detailed-eval date in the AI-attribution HTML block
-(per §12) so the creation pass is dated and attributable.
+(per convention 12) so the creation pass is dated and attributable.
 
 Recent examples: dark_proteomes was created from 0 docs → 5 docs in commit
 `e128e0b`; homolog_counts gained a missing subproject README + workflow
 README in commit `4898c21`.
 
-This is the doc-side counterpart to §44 (cross-check docs against code) —
+This is the doc-side counterpart to convention 44 (cross-check docs against code) —
 when docs *don't exist*, the deep-eval pass owes a baseline doc set.
 
 ---
 
-## 52. Sed-induced `RUN-workflow.sh` duplicate cleanup after §29 conversion
+## 52. Sed-induced `RUN-workflow.sh` duplicate cleanup after convention 29 conversion
 
-After bulk `sed -i 's|RUN-workflow\.sbatch|RUN-workflow.sh|g'` (per §29
+After bulk `sed -i 's|RUN-workflow\.sbatch|RUN-workflow.sh|g'` (per convention 29
 unification), old dir trees and Key Files tables that previously listed
 both files as adjacent rows now show two identical `RUN-workflow.sh`
 lines. Detection pattern:
@@ -1321,7 +1330,7 @@ done
 ```
 
 **Cleanup**: merge each duplicate pair into a **single** entry annotated
-with `(local or SLURM via execution_mode YAML per §29)`. Do not delete
+with `(local or SLURM via execution_mode YAML per convention 29)`. Do not delete
 both — preserve the row so the file's existence is documented; just
 collapse the duplicate.
 
@@ -1336,7 +1345,7 @@ Established in gene_sizes (commit `ab6ad1b`).
 
 ## 53. Single-BLOCK subproject conda env naming — tolerated short form
 
-§28 mandates `aiG-<subproject>-<block_or_step>` for per-BLOCK conda envs.
+convention 28 mandates `aiG-<subproject>-<block_or_step>` for per-BLOCK conda envs.
 For **single-BLOCK subprojects**, the short form `aiG-<subproject>` is
 tolerated (and currently in use), e.g.:
 
@@ -1347,11 +1356,11 @@ one BLOCK), and the short form is more legible in conda activation
 commands. Doc this deviation in the subproject's README + BLOCK AI_GUIDE
 so future readers know it's deliberate.
 
-Stricter §28 form remains preferred for **multi-BLOCK** subprojects (e.g.,
+Stricter convention 28 form remains preferred for **multi-BLOCK** subprojects (e.g.,
 `aiG-annotations_hmms-tmbed` — six tool BLOCKs, each with its own env).
 
 If a single-BLOCK subproject grows a second BLOCK later, the short form
-should be expanded to the strict §28 form at that time.
+should be expanded to the strict convention 28 form at that time.
 
 ---
 
@@ -1379,9 +1388,9 @@ title), the response would instead be a revert + redo — different protocol.
 
 ## 55. Untracking previously-tracked files in `research_user/`
 
-§25 mandates that `research_notebook/research_user/` ships only
+convention 25 mandates that `research_notebook/research_user/` ships only
 `.gitignore` (and `.gitkeep`-style markers). When deep-eval discovers
-historic tracked content there (e.g., paper summaries committed before §25
+historic tracked content there (e.g., paper summaries committed before convention 25
 was formalized, or migrated in from a per-subproject `research_notebook/`
 where they were tracked):
 
@@ -1389,7 +1398,7 @@ where they were tracked):
 - File continues to live at the new (sandbox) path, gitignored
 - Document the untracking in the commit message
 
-Rationale: the §25 separation is the load-bearing rule that lets
+Rationale: the convention 25 separation is the load-bearing rule that lets
 `research_user/` stay completely free-form while GIGANTIC's
 reproducibility guarantees remain intact. Tracked paper summaries violate
 that separation. They can be re-tracked elsewhere later (a curated
@@ -1404,14 +1413,14 @@ remain on disk under `research_user/subproject-gene_sizes/ai_research/`.
 
 ## 56. Workflow-level `README.md` is mandatory at every `workflow-COPYME-*/` root
 
-Refines §35: every `workflow-COPYME-*/` directory ships BOTH:
+Refines convention 35: every `workflow-COPYME-*/` directory ships BOTH:
 
 - `README.md` at the workflow root — user-facing quick start + I/O
 - `ai/AI_GUIDE.md` — AI-facing execution guide
 
 When deep-eval encounters a workflow with only `ai/AI_GUIDE.md` and no
 top-level `README.md`, create the README. Pattern: each workflow README
-contains AI-attribution block + §42 Where-this-fits + Purpose + Usage
+contains AI-attribution block + convention 42 Where-this-fits + Purpose + Usage
 + Inputs + Outputs + See-Also (pointer to `ai/AI_GUIDE.md`).
 
 Example added: homolog_counts workflow README in commit `4898c21`.
@@ -1447,7 +1456,7 @@ when working a list).
 
 ## 58. `x_*` gitignore pattern — archive-for-later-deletion
 
-Parallels §49 `z_*` but with opposite intent:
+Parallels convention 49 `z_*` but with opposite intent:
 
 | Prefix | Intent | Lifecycle |
 |--------|--------|-----------|
@@ -1482,7 +1491,7 @@ Common occurrences:
 | Past-canonical code being kept temporarily for reference, then deleted | `x_` |
 | Brand-new code under development, not yet ready for general use | `z_` |
 | Deprecated but might come back / unclear which direction | Default to `x_` (deprecation is the active framing) and rename to `z_` only if it does come back into active development |
-| Work that is outside GIGANTIC and on neither track (permanent, not coming in, not going out) | neither — house it in the `zoo` subproject (§62) |
+| Work that is outside GIGANTIC and on neither track (permanent, not coming in, not going out) | neither — house it in the `zoo` subproject (convention 62) |
 
 The two prefixes are NOT interchangeable — they signal opposite trajectories
 in the lifecycle. `x_` says "going away," `z_` says "coming up."
@@ -1498,7 +1507,7 @@ conventions the same way subprojects do, but are explicitly NOT
 subprojects: their inputs are too variable across genome projects for the
 framework to take ownership.
 
-Per §60: toolkits **do not** become subprojects. They are a distinct,
+Per convention 60: toolkits **do not** become subprojects. They are a distinct,
 permanent category of framework-shipped optional infrastructure.
 
 ### Why toolkits exist as a separate concept
@@ -1543,13 +1552,13 @@ gigantic_project-COPYME/research_notebook/research_ai/subproject-genomesDB/
         │   ├── README.md
         │   └── <toolkit_manifest>.tsv
         ├── README.md
-        ├── RUN-workflow.sh               # canonical §29 entry point
-        └── START_HERE-user_config.yaml   # canonical §29 config name
+        ├── RUN-workflow.sh               # canonical convention 29 entry point
+        └── START_HERE-user_config.yaml   # canonical convention 29 config name
 ```
 
 User-copied run instances follow `toolkit-RUN_<N>-<descriptor>/` naming
-(parallel extension of §35's `workflow-RUN_<N>-*` pattern). RUN
-instances are gitignored by default (per §47 frozen-artifact rule) —
+(parallel extension of convention 35's `workflow-RUN_<N>-*` pattern). RUN
+instances are gitignored by default (per convention 47 frozen-artifact rule) —
 they exist only on the user's local machine after the run completes.
 
 ### Subproject-conformance is the rule, not the exception
@@ -1560,19 +1569,19 @@ is built like a subproject workflow:
 
 | Convention | How a toolkit applies it |
 |---|---|
-| §3 — `AI_GUIDE.md` naming | Plain `AI_GUIDE.md` at every level where one is needed |
-| §12 — AI attribution headers | All toolkit-authored files |
-| §17, §18 — INPUT_user staging arena | A toolkit's bridge step (commonly the next-to-last process) creates relative symlinks from `<project_root>/INPUT_user/<subdir>/` to the toolkit's outputs |
-| §21 — Script naming | `NNN_ai-<lang>-<descriptor>.<ext>` |
-| §23 — `${projectDir}` paths | Used throughout `main.nf` |
-| §28 — Per-toolkit conda env | Own `conda_environment.yml`; env name `aiG-toolkit-<descriptor>` (§53 short-form OK for single-pipeline toolkits) |
-| §29 — Unified `RUN-workflow.sh` + `START_HERE-user_config.yaml` | Canonical filenames, `execution_mode` YAML key, SLURM self-submit, COPYME guard |
-| §34 — Self-documenting TSV headers | All toolkit-produced TSVs |
-| §35 — Template vs RUN naming | `toolkit-COPYME-*` template / `toolkit-RUN_<N>-*` instance |
-| §36 — Fail-fast | No `optional: true` outputs, `errorStrategy = 'terminate'`, `maxErrors = 0`, always-write outputs (empty-with-headers for legitimate empty cases) |
-| §45 — `write_run_log` canonical final | Last script in every toolkit pipeline |
-| §47 — Frozen RUN artifact | Do not edit completed `toolkit-RUN_<N>-*/` dirs; make forward fixes in the COPYME template |
-| §56 — Workflow-level README.md | Mandatory at `toolkit-COPYME-*/` root |
+| convention 3 — `AI_GUIDE.md` naming | Plain `AI_GUIDE.md` at every level where one is needed |
+| convention 12 — AI attribution headers | All toolkit-authored files |
+| convention 17, convention 18 — INPUT_user staging arena | A toolkit's bridge step (commonly the next-to-last process) creates relative symlinks from `<project_root>/INPUT_user/<subdir>/` to the toolkit's outputs |
+| convention 21 — Script naming | `NNN_ai-<lang>-<descriptor>.<ext>` |
+| convention 23 — `${projectDir}` paths | Used throughout `main.nf` |
+| convention 28 — Per-toolkit conda env | Own `conda_environment.yml`; env name `aiG-toolkit-<descriptor>` (convention 53 short-form OK for single-pipeline toolkits) |
+| convention 29 — Unified `RUN-workflow.sh` + `START_HERE-user_config.yaml` | Canonical filenames, `execution_mode` YAML key, SLURM self-submit, COPYME guard |
+| convention 34 — Self-documenting TSV headers | All toolkit-produced TSVs |
+| convention 35 — Template vs RUN naming | `toolkit-COPYME-*` template / `toolkit-RUN_<N>-*` instance |
+| convention 36 — Fail-fast | No `optional: true` outputs, `errorStrategy = 'terminate'`, `maxErrors = 0`, always-write outputs (empty-with-headers for legitimate empty cases) |
+| convention 45 — `write_run_log` canonical final | Last script in every toolkit pipeline |
+| convention 47 — Frozen RUN artifact | Do not edit completed `toolkit-RUN_<N>-*/` dirs; make forward fixes in the COPYME template |
+| convention 56 — Workflow-level README.md | Mandatory at `toolkit-COPYME-*/` root |
 
 The only places toolkit conventions diverge from subproject conventions:
 
@@ -1584,7 +1593,7 @@ The only places toolkit conventions diverge from subproject conventions:
    creates relative symlinks from the project-level INPUT_user staging
    arena into the toolkit's `output_to_input/` view. Subproject
    workflows don't need this because downstream subprojects read their
-   inputs from `output_to_input/` directly per §2.
+   inputs from `output_to_input/` directly per convention 2.
 
 ### Gitignore behavior
 
@@ -1594,10 +1603,10 @@ to GitHub. No special gitignore carve-out is required. Specifically:
 - A toolkit's source files (`main.nf`, scripts, configs, READMEs,
   AI_GUIDEs, the COPYME template's `INPUT_user/` directory) all ship
   with the framework via the default `research_ai/` behavior.
-- `x_*` archive subdirs inside a toolkit stay ignored per §58.
+- `x_*` archive subdirs inside a toolkit stay ignored per convention 58.
 - `work/`, `.nextflow/`, `.nextflow.log*`, `OUTPUT_pipeline/`, and
   `toolkit-RUN_*/` instances stay ignored per the standard
-  NextFlow-runtime + §47 frozen-artifact rules.
+  NextFlow-runtime + convention 47 frozen-artifact rules.
 
 ### Current toolkits
 
@@ -1609,10 +1618,10 @@ to GitHub. No special gitignore carve-out is required. Specifically:
 
 ### See also
 
-- §60 — GIGANTIC is consumed, not extended (framework posture toward
+- convention 60 — GIGANTIC is consumed, not extended (framework posture toward
   user-added subprojects vs. shipped toolkits)
-- §49 — `z_*` early-development counterpart
-- §58 — `x_*` archive-for-later-deletion counterpart
+- convention 49 — `z_*` early-development counterpart
+- convention 58 — `x_*` archive-for-later-deletion counterpart
 
 ---
 
@@ -1637,7 +1646,7 @@ conventions), that is fine — but:
 - The shipped conventions remain available as reference if the user
   wants to mirror them, but the framework does not require this.
 
-This is distinct from §59 (toolkits): toolkits are framework-shipped,
+This is distinct from convention 59 (toolkits): toolkits are framework-shipped,
 framework-owned, and conform to GIGANTIC conventions. User-added
 subprojects are user-shipped, user-owned, and free of framework
 expectations.
@@ -1646,7 +1655,7 @@ expectations.
 
 ## 61. One chat session per subproject; root sessions at the named gigantic_project-COPYME
 
-GIGANTIC's chat-as-research-notebook convention (§9) works best with
+GIGANTIC's chat-as-research-notebook convention (convention 9) works best with
 disciplined session hygiene. Two recommendations.
 
 ### Always root at the named gigantic_project-COPYME
@@ -1657,7 +1666,7 @@ user's renamed copy of `gigantic_project-COPYME/` — e.g.,
 
 **Not** at:
 - `GIGANTIC/` (the framework root, reserved for framework-development
-  sessions per §16)
+  sessions per convention 16)
 - `subprojects/<X>/` (a subproject directory)
 - `subprojects/<X>/<BLOCK_or_STEP>/workflow-COPYME-*/` (a workflow directory)
 - Any other directory deeper than the named project root
@@ -1668,7 +1677,7 @@ and AI guidance are scoped to that directory. Rooting deeper than
 that scopes the AI's view too narrowly and loses cross-subproject
 context (and the AI guides at lower levels assume the session was
 rooted above them). Rooting at `GIGANTIC/` is reserved for
-framework-development sessions per §16.
+framework-development sessions per convention 16.
 
 ### One chat session per subproject + a side channel for small questions
 
@@ -1681,7 +1690,7 @@ For productive project work:
   state.
 - **Continue the same session over many compactions** until it
   becomes overly reactive, muddled, or slow. Compactions are
-  lossless (per §9 the full transcript is captured), so a long
+  lossless (per convention 9 the full transcript is captured), so a long
   session isn't a problem until it starts feeling like one.
 - **When a session goes muddled, start a fresh one** at the same
   named gigantic_project-COPYME root, focused on the same subproject,
@@ -1699,14 +1708,14 @@ For productive project work:
   end up confused about which one they're operating on.
 - Sessions that get derailed by one-off questions and lose their
   thread on the subproject work.
-- Session captures (per §9) that mix multiple unrelated subprojects
+- Session captures (per convention 9) that mix multiple unrelated subprojects
   into a single transcript, making the lab-notebook record harder
   to grep later.
 
 ### See also
 
-- §9 — chat-as-research-notebook lossless captures
-- §16 — framework-development sessions are a separate scope (rooted
+- convention 9 — chat-as-research-notebook lossless captures
+- convention 16 — framework-development sessions are a separate scope (rooted
   at `GIGANTIC/`, distinct from project sessions)
 
 ---
@@ -1716,7 +1725,7 @@ For productive project work:
 `zoo` is a single subproject (`subprojects/zoo/`) that houses work which is
 intentionally **outside GIGANTIC conventions** and is on **neither lifecycle
 track** — not being incorporated in, not being phased out. It is the third
-member of a three-way distinction with the §49 `z_*` and §58 `x_*` prefixes:
+member of a three-way distinction with the convention 49 `z_*` and convention 58 `x_*` prefixes:
 
 | Marker | Meaning | Trajectory |
 |--------|---------|------------|
@@ -1741,7 +1750,7 @@ Key properties:
 - **Conventions caveat.** Contents may not follow GIGANTIC naming, vocabulary,
   manifest, or reproducibility conventions — that is the point. Do NOT flag
   `zoo` blocks as convention violations or propose migrating them onto
-  templates (cf. §47 frozen-artifact rule).
+  templates (cf. convention 47 frozen-artifact rule).
 
 First instance (2026-06-28): the former standalone `leonid_requests` and
 `moroz_innovations` subprojects (ad-hoc Leonid Moroz delivery + an
@@ -1750,8 +1759,8 @@ and `zoo/BLOCK_moroz_innovations`, and removed from `subprojects/` root.
 
 ### See also
 
-- §49 — `z_*` early-development ("coming up") counterpart
-- §58 — `x_*` archive-for-later-deletion ("going away") counterpart
+- convention 49 — `z_*` early-development ("coming up") counterpart
+- convention 58 — `x_*` archive-for-later-deletion ("going away") counterpart
 
 ---
 
@@ -1782,7 +1791,7 @@ restarting it (hit 2026-06-28).
 
 ## 64. No invented acronyms or abbreviations in user-facing communication
 
-§32 governs abbreviations in **code** (full words — `sequence_count` not
+convention 32 governs abbreviations in **code** (full words — `sequence_count` not
 `seq_cnt`; established scientific abbreviations like GO / Pfam / BLAST kept
 as-is). This section extends the same discipline to **prose**: chat
 messages, commit messages, READMEs, AI_GUIDEs, and any text a human reads.
@@ -1795,13 +1804,76 @@ BLOCK, STEP, file, concept). Write every name out in full, every time —
 The only abbreviations allowed in prose are:
 
 - ones the **user introduced first** (mirror their shorthand), and
-- established scientific abbreviations per §32 (GO, Pfam, BLAST, NCBI nr, …).
+- established scientific abbreviations per convention 32 (GO, Pfam, BLAST, NCBI nr, …).
 
 **Why**: the user reads these messages directly and manages the project
 from them. A made-up acronym forces them to decode it, and a single
 ambiguous token (e.g. "ODH" for `one_direction_homologs`) can derail a
 conversation. The cost of writing the full name is trivial; the cost of a
 misread name is not.
+
+---
+
+## 65. Dual-layer output timestamps (GIGANTIC v2.0 — **pilot in progress**, July 2026)
+
+**Status**: **Pilot implementation underway** in `integrator/` (all six blocks)
+and `sequence_groups_X_species/`. Full project-wide rollout remains v2.0;
+see `GIGANTIC_v2.0_TODO.md`. v1.0 subprojects outside the pilot still use
+stable filenames only.
+
+**Problem**: Researchers browsing the data server (e.g. Leonid Moroz) benefit
+from **run-date stamps in output filenames** so they can compare runs and
+know when data were produced. Pipelines that read **hardcoded paths** or
+symlink basenames that change every run would **break**.
+
+**Solution — dual layer** (human/server vs machine):
+
+| Layer | Location | Filename | Consumers |
+|-------|----------|----------|-----------|
+| **Archival / server** | `OUTPUT_pipeline/` inside `workflow-RUN_N-*`; published under `upload_to_server/` | Includes runtime suffix, e.g. `_july11_1645` | Humans, server browsing, run archive |
+| **Machine interface** | `<subproject>/output_to_input/` | **Stable** — no date suffix | Downstream `START_HERE-user_config.yaml`, manifests, scripts |
+
+**Example**:
+
+```
+OUTPUT_pipeline/species70_X_orthogroups/4-output/
+  4_ai-species70_X_orthogroups-composite_clades-per_group_july11_2145.tsv   ← real file
+
+output_to_input/orthogroups/species70_X_orthogroups/
+  4_ai-species70_X_orthogroups-composite_clades-per_group.tsv             ← stable symlink
+    → points at the timestamped file above
+```
+
+**Rules (v2.0)**:
+
+1. **Never** put timestamped paths in `START_HERE-user_config.yaml` or
+   inter-subproject configs — always read from `output_to_input/`.
+2. **`RUN-workflow.sh`** (or equivalent publisher) must create symlinks with
+   **fixed alias names** (strip the runtime suffix), not `basename "$f"` of
+   the timestamped file.
+3. **`upload_manifest.tsv`** globs must remain compatible (e.g.
+   `4_ai-*-composite_clades-per_group*.tsv`) or use explicit `dest_name`.
+4. **Within a single workflow run**, scripts that depend on each other's
+   outputs use a **pointer file** (integrator v1.0 precedent:
+   `1-output/_shared/1_ai-run_timestamp_suffix.txt`) or pass the suffix
+   through NextFlow params — do not guess filenames.
+5. **Shared helper**: centralize `filename_timestamp_suffix()` (format
+   `_<monthname><day>_<hhmm>`, e.g. `_july11_1645`) in a project-wide
+   utility (extend `integrator/ai/utils_integrator_shared.py` or a new
+   `gigantic_output_conventions` module).
+6. **Rollout**: phased by tier — not big-bang. Pilot on server-facing
+   subprojects first (`sequence_groups_X_species`, integrator catalog
+   blocks). **Do not** timestamp internal intermediates (BLAST reports,
+   membership build internals) unless the same run uses a pointer file.
+
+**v1.0 partial precedent** (now extended by pilot): integrator blocks and
+`sequence_groups_X_species` use `OUTPUT_pipeline/1_ai-run_timestamp_suffix.txt`
+(written by `RUN-workflow.sh` before NextFlow), timestamped archival files, and
+stable `output_to_input/` symlinks via `integrator/ai/link_stable_output_to_input_symlinks.py`.
+
+**v1.0 everywhere else**: stable filenames only; run provenance from
+`workflow-RUN_N-*` directory names and Script 005 / `write_run_log`
+timestamped logs in `ai/logs/` (convention 45).
 
 ---
 

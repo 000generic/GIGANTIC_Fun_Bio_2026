@@ -6,7 +6,7 @@
 #
 # ============================================================================
 #
-# GIGANTIC sequence_groups_X_species - BLOCK_resolve_groups
+# GIGANTIC sequence_groups_X_species - BLOCK_sequence_groups
 # AI: Claude Code | Opus 4.8 | 2026 June 28  (multi-producer: Opus 4.8 | 2026 July 08)
 # Human: Eric Edsinger
 #
@@ -109,15 +109,16 @@ inputs:
 # =============================================================================
 # Script 006 builds ONE cross-producer sequence -> annotation index, and Script 004
 # joins it onto every producer's composite-clades DETAIL tables: per sequence group,
-# it adds the distinct annotation identifiers + names aggregated over ALL member
-# sequences, for each annotation mode below. Leonid (2026-07): GO, PANTHER, PFAM,
-# Gene_Families, and Gene_Groups.
+# four columns per integrator catalog annotation type (Species_Count, Sequence_Count,
+# Identifiers, Names) aggregated over ALL member sequences.
 #
-# PFAM/PANTHER/GO identifiers+names come from the FEATURE-type annogroups (the raw
-# per-sequence accession + its description) already produced by the annogroups
-# subproject. Gene_Families and Gene_Groups use the family/group slug as both
-# identifier and name (the slug matches each producer's own SequenceGroup_ID).
+# Paths mirror integrator BLOCK_orthogroups_X_all_annotations (Pfam/GO/PANTHER from
+# annotations_hmms; Annogroups_* from annogroups; Gene_Families / Gene_Groups from
+# trees_gene_families / trees_gene_groups; Dark_Proteome + Hotspots per-sequence).
 annotation_index:
+  interproscan_parsed_dir: "../../../annotations_hmms/output_to_input/BLOCK_interproscan_parsed"
+  interproscan_raw_dir: "../../../annotations_hmms/output_to_input/BLOCK_interproscan"
+  go_id_to_name: "../../../annotations_hmms/output_to_input/GO_reference/go_id_to_name.tsv"
   pfam_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/pfam/2_ai-pfam-annogroup_membership.tsv"
   pfam_map: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/pfam/2_ai-pfam-annogroup_map.tsv"
   panther_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/panther/2_ai-panther-annogroup_membership.tsv"
@@ -125,7 +126,10 @@ annotation_index:
   go_membership: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/go/2_ai-go-annogroup_membership.tsv"
   go_map: "../../../annogroups/output_to_input/BLOCK_build_annogroups/species70/go/2_ai-go-annogroup_map.tsv"
   gene_families_dir: "../../../trees_gene_families/output_to_input"
-  gene_groups_dir: "../../../trees_gene_groups/output_to_input/gene_groups-hugo_hgnc"
+  gene_groups_dir: "../../../trees_gene_groups/output_to_input"
+  gene_groups_hgnc_metadata: "../../../trees_gene_groups/gene_groups-hugo_hgnc/STEP_0-hgnc_gene_groups/workflow-RUN_1-hgnc_gene_groups/OUTPUT_pipeline/2-output/2_ai-gene_group_metadata.tsv"
+  dark_proteome_dir: "../../../dark_proteomes/BLOCK_classify_dark_proteome/workflow-RUN_1-classify_dark_proteome-species70/OUTPUT_pipeline/3-output"
+  hotspots_dir: "../../../hotspots/output_to_input/BLOCK_identify_hotspots/hotspots"
 
 # =============================================================================
 # Composite Clades (Script 004)

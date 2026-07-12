@@ -187,6 +187,10 @@ echo "  Run Label   : ${RUN_LABEL}"
 echo "  Species Set : ${SPECIES_SET}"
 echo ""
 
+INTEGRATOR_AI="${SCRIPT_DIR}/../../ai"
+mkdir -p OUTPUT_pipeline
+python3 "${INTEGRATOR_AI}/write_workflow_run_timestamp.py" --output-pipeline OUTPUT_pipeline
+
 # ============================================================================
 # Run NextFlow pipeline
 # ============================================================================
@@ -235,36 +239,29 @@ echo ""
 echo "Creating symlinks for downstream consumers..."
 
 SHARED_DIR="../../output_to_input/BLOCK_orthogroups_ocl_X_features/${RUN_LABEL}"
+find "${SHARED_DIR}" -mindepth 1 -delete 2>/dev/null || true
 mkdir -p "${SHARED_DIR}"
 
-# Remove stale per-structure symlink dirs from previous runs
-for old in "${SHARED_DIR}"/structure_*; do
-    [ -e "$old" ] && rm -rf "$old"
-done
+if [ -d "OUTPUT_pipeline/_shared" ]; then
+    python3 "${INTEGRATOR_AI}/link_stable_output_to_input_symlinks.py" \
+        --output-pipeline OUTPUT_pipeline/_shared \
+        --shared-dir "${SHARED_DIR}/_shared" \
+        --workflow-relative "../../../BLOCK_orthogroups_ocl_X_features/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/_shared" \
+        --preserve-subdirs --strip-stage-prefix
+fi
 
 for structure_dir in OUTPUT_pipeline/structure_*; do
-    [ -d "$structure_dir" ] || continue
-    structure_name=$(basename "$structure_dir")          # structure_NNN
-    structure_num="${structure_name#structure_}"          # NNN
+    [ -d "${structure_dir}" ] || continue
+    structure_name="$(basename "${structure_dir}")"
     mkdir -p "${SHARED_DIR}/${structure_name}"
-
-    declare -A TABLE_MAP=(
-        ["2-output/2_ai-structure_${structure_num}_orthogroups-integrated_summary.tsv"]="2_ai-orthogroups-integrated_summary.tsv"
-        ["3-output/3_ai-structure_${structure_num}_block_states-integrated_expanded.tsv"]="3_ai-block_states-integrated_expanded.tsv"
-        ["4-output/4_ai-structure_${structure_num}_genes-integrated_drilldown.tsv"]="4_ai-genes-integrated_drilldown.tsv"
-    )
-    for src_rel in "${!TABLE_MAP[@]}"; do
-        clean_name="${TABLE_MAP[$src_rel]}"
-        src_file="${structure_dir}/${src_rel}"
-        if [ -f "$src_file" ]; then
-            ln -sf "../../../../BLOCK_orthogroups_ocl_X_features/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/${structure_name}/${src_rel}" \
-                "${SHARED_DIR}/${structure_name}/${clean_name}"
-        fi
-    done
-    unset TABLE_MAP
+    python3 "${INTEGRATOR_AI}/link_stable_output_to_input_symlinks.py" \
+        --output-pipeline "${structure_dir}" \
+        --shared-dir "${SHARED_DIR}/${structure_name}" \
+        --workflow-relative "../../../../BLOCK_orthogroups_ocl_X_features/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/${structure_name}" \
+        --preserve-subdirs --strip-stage-prefix
 done
 
-SYMLINK_COUNT=$(find "${SHARED_DIR}" -name "*.tsv" -type l 2>/dev/null | wc -l)
+SYMLINK_COUNT=$(find "${SHARED_DIR}" -type l 2>/dev/null | wc -l)
 echo "  output_to_input/BLOCK_orthogroups_ocl_X_features/${RUN_LABEL}/ -> ${SYMLINK_COUNT} symlinks created"
 
 echo ""

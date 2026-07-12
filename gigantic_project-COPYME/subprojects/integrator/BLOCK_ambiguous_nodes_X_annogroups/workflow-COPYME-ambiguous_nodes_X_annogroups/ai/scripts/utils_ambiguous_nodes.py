@@ -282,3 +282,22 @@ def _read_structure_ids_from_file( selected_path: Path ) -> set:
         if token:
             structure_ids.add( token )
     return structure_ids
+
+
+_INTEGRATOR_AI = Path( __file__ ).resolve().parents[ 4 ] / "ai"
+if str( _INTEGRATOR_AI ) not in sys.path:
+    sys.path.insert( 0, str( _INTEGRATOR_AI ) )
+
+import utils_integrator_shared as _SHARED
+
+find_output_pipeline_root = _SHARED.find_output_pipeline_root
+resolve_workflow_run_timestamp_suffix = _SHARED.resolve_workflow_run_timestamp_suffix
+build_timestamped_filename = _SHARED.build_timestamped_filename
+resolve_timestamped_output_path = _SHARED.resolve_timestamped_output_path
+
+
+def timestamped_output_path( output_dir: Path, stem: str, output_base: Path, extension: str = '.tsv' ) -> Path:
+    """Build a timestamped archival path under output_dir using the shared run suffix (§65)."""
+    pipeline_root = find_output_pipeline_root( output_base )
+    suffix = resolve_workflow_run_timestamp_suffix( pipeline_root )
+    return output_dir / build_timestamped_filename( stem, suffix, extension )

@@ -172,6 +172,10 @@ echo "  Run Label   : ${RUN_LABEL}"
 echo "  Species Set : ${SPECIES_SET}"
 echo ""
 
+INTEGRATOR_AI="${SCRIPT_DIR}/../../ai"
+mkdir -p OUTPUT_pipeline
+python3 "${INTEGRATOR_AI}/write_workflow_run_timestamp.py" --output-pipeline OUTPUT_pipeline
+
 # ============================================================================
 # Run NextFlow pipeline
 # ============================================================================
@@ -220,27 +224,14 @@ echo ""
 echo "Creating symlinks for downstream consumers..."
 
 SHARED_DIR="../../output_to_input/BLOCK_annotations_X_orthogroups/${RUN_LABEL}"
+find "${SHARED_DIR}" -mindepth 1 -delete 2>/dev/null || true
 mkdir -p "${SHARED_DIR}"
-
-# Remove stale table symlinks from previous runs
-for old in "${SHARED_DIR}"/*.tsv; do
-    [ -L "$old" ] && rm -f "$old"
-done
-
-declare -A TABLE_MAP=(
-    ["1-output/1_ai-orthogroups-species_composition.tsv"]="1_ai-orthogroups-species_composition.tsv"
-    ["2-output/2_ai-nonbilaterian_metazoan_orthogroups.tsv"]="2_ai-nonbilaterian_metazoan_orthogroups.tsv"
-    ["3-output/3_ai-annogroups_X_orthogroups.tsv"]="3_ai-annogroups_X_orthogroups.tsv"
-)
-for src_rel in "${!TABLE_MAP[@]}"; do
-    clean_name="${TABLE_MAP[$src_rel]}"
-    if [ -f "OUTPUT_pipeline/${src_rel}" ]; then
-        ln -sf "../../../BLOCK_annotations_X_orthogroups/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/${src_rel}" \
-            "${SHARED_DIR}/${clean_name}"
-    fi
-done
-
-SYMLINK_COUNT=$(find "${SHARED_DIR}" -name "*.tsv" -type l 2>/dev/null | wc -l)
+python3 "${INTEGRATOR_AI}/link_stable_output_to_input_symlinks.py" \
+    --output-pipeline OUTPUT_pipeline \
+    --shared-dir "${SHARED_DIR}" \
+    --workflow-relative "../../../BLOCK_annotations_X_orthogroups/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline" \
+    --preserve-subdirs --strip-stage-prefix
+SYMLINK_COUNT=$(find "${SHARED_DIR}" -type l 2>/dev/null | wc -l)
 echo "  output_to_input/BLOCK_annotations_X_orthogroups/${RUN_LABEL}/ -> ${SYMLINK_COUNT} symlinks created"
 
 echo ""

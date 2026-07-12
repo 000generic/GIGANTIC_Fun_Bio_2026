@@ -116,7 +116,7 @@ process per_species_sequence_map {
 // ============================================================================
 // PROCESS 006: BUILD ANNOTATION INDEX (once; cross-producer sequence -> annotations)
 // ============================================================================
-// Builds ONE sequence -> annotation index (PFAM/PANTHER/GO/Gene_Families/Gene_Groups)
+// Builds ONE sequence -> annotation index (10 integrator catalog annotation types)
 // that Script 004 joins onto every producer's composite-clades detail tables. Runs
 // once and gates all composite_clades tasks.
 process build_annotation_index {
@@ -173,8 +173,8 @@ process write_run_log {
     script:
     """
     python3 ${projectDir}/scripts/005_ai-python-write_run_log.py \
-        --workflow-name "resolve_groups" \
-        --subproject-name "sequence_groups_X_species-BLOCK_resolve_groups" \
+        --workflow-name "sequence_groups" \
+        --subproject-name "sequence_groups_X_species-BLOCK_sequence_groups" \
         --project-name "${params.project_name}" \
         --status success
     """

@@ -240,7 +240,7 @@ def main():
 
     output_dir = Path( args.output_dir ) / "1-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_composition_path = output_dir / "1_ai-orthogroups-species_composition.tsv"
+    output_composition_path = U.timestamped_output_path( output_dir, "1_ai-orthogroups-species_composition", Path( args.output_dir ) )
 
     header_columns = [
         "Orthogroup_ID (orthogroup identifier from the orthogroups subproject)",

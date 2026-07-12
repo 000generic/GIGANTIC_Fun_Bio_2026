@@ -57,9 +57,10 @@ def main():
     input_ocl_dir = U.resolve_input_path( workflow_root, config[ "inputs" ][ "ocl_orthogroups_dir" ] )
 
     base = Path( args.output_dir ) / structure_name
-    table1_path = base / "2-output" / f"2_ai-structure_{structure_id}_orthogroups-integrated_summary.tsv"
-    table2_path = base / "3-output" / f"3_ai-structure_{structure_id}_block_states-integrated_expanded.tsv"
-    table3_path = base / "4-output" / f"4_ai-structure_{structure_id}_genes-integrated_drilldown.tsv"
+    output_base = Path( args.output_dir )
+    table1_path = U.resolve_timestamped_output_path( base / "2-output", "2_ai-orthogroups-integrated_summary", output_base )
+    table2_path = U.resolve_timestamped_output_path( base / "3-output", "3_ai-block_states-integrated_expanded", output_base )
+    table3_path = U.resolve_timestamped_output_path( base / "4-output", "4_ai-genes-integrated_drilldown", output_base )
     ocl_summary_path = input_ocl_dir / structure_name / "4_ai-orthogroups-complete_ocl_summary.tsv"
 
     failures = []

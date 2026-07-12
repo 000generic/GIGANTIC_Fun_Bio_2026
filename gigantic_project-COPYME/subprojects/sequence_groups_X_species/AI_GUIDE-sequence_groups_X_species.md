@@ -3,14 +3,14 @@
 **For AI assistants**: Read `../../AI_GUIDE-project.md` first for the GIGANTIC
 overview, directory structure, and general patterns. This guide covers the
 `sequence_groups_X_species` subproject; the workflow guide
-(`BLOCK_resolve_groups/workflow-COPYME-resolve_groups/ai/AI_GUIDE-resolve_groups_workflow.md`)
+(`BLOCK_sequence_groups/workflow-COPYME-sequence_groups/ai/AI_GUIDE-sequence_groups_workflow.md`)
 covers running it.
 
 | User needs… | Go to… |
 |---|---|
 | GIGANTIC overview, directory structure | `../../AI_GUIDE-project.md` |
 | What this subproject is, concepts, troubleshooting | This file |
-| Running the workflow | `BLOCK_resolve_groups/.../ai/AI_GUIDE-resolve_groups_workflow.md` |
+| Running the workflow | `BLOCK_sequence_groups/.../ai/AI_GUIDE-sequence_groups_workflow.md` |
 
 ## Purpose
 
@@ -74,7 +74,7 @@ its composite/deconvolution come from THIS subproject.
 
 | File | What | User edits? |
 |---|---|---|
-| `BLOCK_resolve_groups/workflow-COPYME-resolve_groups/START_HERE-user_config.yaml` | group set, producer, inputs, composite clades | **yes** |
+| `BLOCK_sequence_groups/workflow-COPYME-sequence_groups/START_HERE-user_config.yaml` | group set, producer, inputs, composite clades | **yes** |
 | `.../INPUT_user/composite_clades_manifest.tsv` | which composite clades to report | **yes** |
 | `.../ai/scripts/001…004` | adapter + three overlays | rarely |
 | `.../ai/scripts/utils_sequence_groups.py` | composite engine + clade/phyloname helpers | rarely |

@@ -1,4 +1,4 @@
-# AI_GUIDE — resolve_groups workflow
+# AI_GUIDE — sequence_groups workflow
 
 **For AI assistants**: Read the subproject guide
 (`../../../AI_GUIDE-sequence_groups_X_species.md`) first for concepts. This guide
@@ -20,8 +20,8 @@ focuses on RUNNING the workflow.
 ## Run
 
 ```bash
-cp -r workflow-COPYME-resolve_groups workflow-RUN_N-resolve_groups
-cd workflow-RUN_N-resolve_groups
+cp -r workflow-COPYME-sequence_groups workflow-RUN_N-sequence_groups
+cd workflow-RUN_N-sequence_groups
 # edit START_HERE-user_config.yaml: group_set_label, producer, inputs, composite_clades
 export TMPDIR=/tmp        # avoids a stale TMPDIR on compute nodes
 bash RUN-workflow.sh      # local, or self-submits to SLURM if execution_mode: slurm
@@ -42,7 +42,7 @@ Outputs land in `OUTPUT_pipeline/{1,2,3,4}-output/`; downstream symlinks in
 | `composite_clades` | building-block clade groups + scope |
 | `emit_per_structure` | also write the per-structure deconvolution re-layout (default false; the union holds all clades) |
 | `deconvolution_structures` | restrict Script 002 clade columns to these structures only (default `[]` = all 105; Leonid uses 001/003/031/032) |
-| `annotation_index` | paths for Script 006 (PFAM/PANTHER/GO annogroups + gene_families/gene_groups dirs); required for annotated detail tables |
+| `annotation_index` | paths for Script 006 (annotations_hmms + annogroups + gene_families/gene_groups + dark_proteome + hotspots); required for annotated detail tables |
 | `execution_mode` | `local` or `slurm` (then set `slurm_account`/`slurm_qos`) |
 
 ## Common errors

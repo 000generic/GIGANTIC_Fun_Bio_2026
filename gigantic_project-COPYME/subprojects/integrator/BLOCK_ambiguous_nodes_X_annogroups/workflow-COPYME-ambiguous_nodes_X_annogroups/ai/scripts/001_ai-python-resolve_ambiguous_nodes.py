@@ -59,11 +59,11 @@ def resolve_scopes( config: dict ) -> dict:
     }
 
 
-def write_registry( output_dir: Path, source: str, ambiguous_clades: list,
+def write_registry( output_dir: Path, output_base: Path, source: str, ambiguous_clades: list,
                     total_structures: int, one_clade_set: set, some_clade_set: set,
                     scope_flags: dict ) -> Path:
     """One row per ambiguous node with its scope-membership flags."""
-    registry_path = output_dir / f"1_ai-{source}-ambiguous_node_registry.tsv"
+    registry_path = U.timestamped_output_path( output_dir, f"1_ai-{source}-ambiguous_node_registry", output_base )
     header_columns = [
         "Clade_ID_Name (atomic clade identifier of an ambiguous node e.g. C096_Planulozoa)",
         "Descendant_Species_Count (count of species descending from this clade; stable across structures per Rule 6)",
@@ -93,11 +93,11 @@ def write_registry( output_dir: Path, source: str, ambiguous_clades: list,
     return registry_path
 
 
-def write_structure_sets( output_dir: Path, source: str, total_structures: int,
+def write_structure_sets( output_dir: Path, output_base: Path, source: str, total_structures: int,
                           ambiguous_clades: list, one_clade_set: set, some_clade_set: set,
                           some_structures: list, scope_flags: dict ) -> Path:
     """One row per scope (all / one / some): coverage + ambiguous-node count."""
-    structure_sets_path = output_dir / f"1_ai-{source}-structure_sets.tsv"
+    structure_sets_path = U.timestamped_output_path( output_dir, f"1_ai-{source}-structure_sets", output_base )
     header_columns = [
         "Scope (the structure scope: all, one, or some)",
         "Enabled (yes when this scope is produced)",
@@ -180,9 +180,10 @@ def main():
 
         output_dir = Path( args.output_dir ) / "1-output" / source
         output_dir.mkdir( parents = True, exist_ok = True )
-        registry_path = write_registry( output_dir, source, ambiguous_clades, total_structures,
+        output_base = Path( args.output_dir )
+        registry_path = write_registry( output_dir, output_base, source, ambiguous_clades, total_structures,
                                         one_clade_set, some_clade_set, scope_flags )
-        structure_sets_path = write_structure_sets( output_dir, source, total_structures, ambiguous_clades,
+        structure_sets_path = write_structure_sets( output_dir, output_base, source, total_structures, ambiguous_clades,
                                                     one_clade_set, some_clade_set, some_structures, scope_flags )
 
         one_count = sum( 1 for clade in ambiguous_clades if clade[ 'clade_id_name' ] in one_clade_set )

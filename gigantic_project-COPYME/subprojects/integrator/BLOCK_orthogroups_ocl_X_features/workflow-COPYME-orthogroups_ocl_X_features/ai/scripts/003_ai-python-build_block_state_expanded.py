@@ -145,7 +145,9 @@ def main():
     workflow_root = U.workflow_root_from_output_dir( args.output_dir )
     input_ocl_dir = U.resolve_input_path( workflow_root, config[ "inputs" ][ "ocl_orthogroups_dir" ] )
 
-    input_table1_path = Path( args.output_dir ) / structure_name / "2-output" / f"2_ai-structure_{structure_id}_orthogroups-integrated_summary.tsv"
+    output_base = Path( args.output_dir )
+    input_table1_path = U.resolve_timestamped_output_path(
+        output_base / structure_name / "2-output", "2_ai-orthogroups-integrated_summary", output_base )
     input_path_states_path = input_ocl_dir / structure_name / "4_ai-path_states-per_orthogroup_per_species.tsv"
 
     if not input_table1_path.is_file():
@@ -165,7 +167,7 @@ def main():
 
     output_dir = Path( args.output_dir ) / structure_name / "3-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_expanded_path = output_dir / f"3_ai-structure_{structure_id}_block_states-integrated_expanded.tsv"
+    output_expanded_path = U.timestamped_output_path( output_dir, "3_ai-block_states-integrated_expanded", output_base )
 
     header_columns = [
         "Structure_ID (phylogenetic species tree structure identifier)",

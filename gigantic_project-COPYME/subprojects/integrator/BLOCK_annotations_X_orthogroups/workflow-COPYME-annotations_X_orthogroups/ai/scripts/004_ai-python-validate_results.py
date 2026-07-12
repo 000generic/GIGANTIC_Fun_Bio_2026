@@ -54,9 +54,9 @@ def main():
     args = parser.parse_args()
 
     output_base = Path( args.output_dir )
-    composition_path = output_base / "1-output" / "1_ai-orthogroups-species_composition.tsv"
-    table2_path = output_base / "2-output" / "2_ai-nonbilaterian_metazoan_orthogroups.tsv"
-    table1_path = output_base / "3-output" / "3_ai-annogroups_X_orthogroups.tsv"
+    composition_path = U.resolve_composition_table_path( output_base )
+    table2_path = U.resolve_timestamped_output_path( output_base / "2-output", "2_ai-nonbilaterian_metazoan_orthogroups", output_base )
+    table1_path = U.resolve_timestamped_output_path( output_base / "3-output", "3_ai-annogroups_X_orthogroups", output_base )
 
     failures = []
 

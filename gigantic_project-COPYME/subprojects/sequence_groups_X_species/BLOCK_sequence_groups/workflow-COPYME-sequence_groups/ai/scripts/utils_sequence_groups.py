@@ -1,30 +1,106 @@
-# AI: Claude Code | Opus 4.8 (1M context) | 2026 June 28 | Purpose: Shared helpers for the sequence_groups_X_species subproject — composite clades + clade resolution over a producer-agnostic sequence-group membership
+# AI: Claude (Cursor) | Opus 4.8 | 2026 July 11 | Purpose: Shared helpers for sequence_groups_X_species — composite clades + clade resolution
 # Human: Eric Edsinger
 
 """
 Shared helpers for the sequence_groups_X_species subproject.
 
-This subproject RESOLVES any "sequence group" onto the species-tree clades: given a
-group's member sequences and species, it answers where those members fall on the
-species tree (composite clades, per-clade deconvolution, per-species sequence map).
-A "sequence group" is producer-agnostic — an annogroup (annotation grouping), an
-orthogroup (orthology grouping), a gene family, etc. Each producer is read through
-a small adapter (Script 001) into a STANDARD membership format:
+Join keys and delimiters: integrator/ai/utils_integrator_shared.py
+(see integrator/ai/integrator_join_and_delimiter_contract.md).
+
+This subproject RESOLVES any "sequence group" onto the species-tree clades via the
+standard membership interchange:
 
     SequenceGroup_ID  Sequence_Identifier  Genus_Species
-
-from which everything else is derived (member species, per-species sequences,
-per-clade counts). This module holds the composite-clade engine, the clade-species
-loaders, the phyloname->Genus_species parsing, and small config/IO infra — all
-producer-independent.
 """
 
 import sys
 from pathlib import Path
-import yaml
 
-# In-column multi-value delimiter — bare comma per gigantic_conventions §34.
-DELIM = ','
+_INTEGRATOR_AI = Path( __file__ ).resolve().parents[ 5 ] / "integrator" / "ai"
+if str( _INTEGRATOR_AI ) not in sys.path:
+    sys.path.insert( 0, str( _INTEGRATOR_AI ) )
+
+import utils_integrator_shared as _SHARED
+
+DELIM = _SHARED.DELIM
+SUBDELIM = _SHARED.SUBDELIM
+NAME_DELIM = _SHARED.NAME_DELIM
+NA = _SHARED.NA
+GENE_GROUP_NAME_FALLBACKS = _SHARED.GENE_GROUP_NAME_FALLBACKS
+DEFAULT_GENE_GROUPS_HGNC_METADATA = _SHARED.DEFAULT_GENE_GROUPS_HGNC_METADATA
+
+load_config = _SHARED.load_config
+workflow_root_from_output_dir = _SHARED.workflow_root_from_output_dir
+resolve_input_path = _SHARED.resolve_input_path
+genus_species_from_phyloname = _SHARED.genus_species_from_phyloname
+parse_full_gigantic_id = _SHARED.parse_full_gigantic_id
+genus_species_from_full_gigantic_id = _SHARED.genus_species_from_full_gigantic_id
+build_header_index = _SHARED.build_header_index
+guard_name = _SHARED.guard_name
+annogroup_name_from_map_fields = _SHARED.annogroup_name_from_map_fields
+load_gene_group_metadata = _SHARED.load_gene_group_metadata
+resolve_gene_group_id_name = _SHARED.resolve_gene_group_id_name
+sanitized_name_from_ags_path = _SHARED.sanitized_name_from_ags_path
+find_output_pipeline_root = _SHARED.find_output_pipeline_root
+resolve_workflow_run_timestamp_suffix = _SHARED.resolve_workflow_run_timestamp_suffix
+build_timestamped_filename = _SHARED.build_timestamped_filename
+stable_symlink_basename = _SHARED.stable_symlink_basename
+
+
+def timestamped_output_path( output_dir: Path, stem: str, output_base: Path, extension: str = '.tsv' ) -> Path:
+    """Build a timestamped output path under output_dir using the shared run suffix (§65)."""
+    pipeline_root = find_output_pipeline_root( output_base )
+    suffix = resolve_workflow_run_timestamp_suffix( pipeline_root )
+    return output_dir / build_timestamped_filename( stem, suffix, extension )
+
+
+def membership_output_path( output_base: Path, group_set_label: str ) -> Path:
+    """Standard Script 001 membership table path (timestamped archival filename)."""
+    return timestamped_output_path(
+        output_base / "1-output",
+        f"1_ai-{group_set_label}-sequence_group_membership",
+        output_base,
+    )
+
+
+def genus_species_from_full_id( full_id: str ) -> str:
+    """Backward-compatible alias used by Script 001 (empty string when unparsable)."""
+    parsed = genus_species_from_full_gigantic_id( full_id )
+    return parsed if parsed is not None else ''
+
+
+def annotation_type_header_columns( prefix: str, label: str, names_blank: bool = False ) -> list:
+    """Four self-documenting headers per annotation type (integrator catalog pattern)."""
+    if names_blank:
+        names_desc = (
+            f"{prefix}_Names (intentionally blank; {label} has no separate human-readable name)"
+        )
+    else:
+        names_desc = (
+            f"{prefix}_Names (' // ' delimited {label} names aligned to {prefix}_Identifiers)"
+        )
+    return [
+        f"{prefix}_Species_Count (non-redundant count of member species with >=1 {label} on this sequence group)",
+        f"{prefix}_Sequence_Count (non-redundant count of member sequences with >=1 {label} on this sequence group)",
+        f"{prefix}_Identifiers (comma delimited non-redundant {label} identifiers aggregated over member sequences)",
+        names_desc,
+    ]
+
+
+# Integrator catalog annotation types (Script 006 index + Script 004 detail columns).
+# Tuple: ( prefix, human label for headers, names_blank )
+ANNOTATION_TYPE_SPECS = [
+    ( "Pfam", "Pfam domain", False ),
+    ( "GO", "GO term", False ),
+    ( "PANTHER", "PANTHER family", False ),
+    ( "Annogroups_Pfam", "pfam annogroup", False ),
+    ( "Annogroups_GO", "go annogroup", False ),
+    ( "Annogroups_PANTHER", "panther annogroup", False ),
+    ( "Gene_Families", "gene family", False ),
+    ( "Gene_Groups", "gene group", False ),
+    ( "Dark_Proteome", "dark proteome status", False ),
+    ( "Hotspots", "hotspot", True ),
+]
 
 
 # ============================================================================
@@ -419,43 +495,9 @@ def _load_structure_clade_species( mappings_path: Path, reference_structure: str
     return clades___species
 
 
-def load_config( config_path: str ) -> dict:
-    """Load START_HERE-user_config.yaml into a nested dict."""
-    with open( config_path, 'r' ) as input_config:
-        config = yaml.safe_load( input_config )
-    return config
-
-
-def workflow_root_from_output_dir( output_dir: str ) -> Path:
-    """
-    The workflow root is the parent of OUTPUT_pipeline. Input paths in the YAML
-    are written relative to the workflow root (gigantic_conventions §5).
-    """
-    return Path( output_dir ).resolve().parent
-
-
-def resolve_input_path( workflow_root: Path, relative_path: str ) -> Path:
-    """Resolve a YAML-relative input path against the workflow root."""
-    return ( workflow_root / relative_path ).resolve()
-
-
-def genus_species_from_phyloname( phyloname: str ) -> str:
-    """
-    Extract Genus_species from a GIGANTIC phyloname
-    (Kingdom_Phylum_Class_Order_Family_Genus_species; genus+species at parts[5:]).
-    Multi-word species (e.g. Hoilungia_hongkongensis_H13) are preserved.
-    """
-    parts_phyloname = phyloname.split( '_' )
-    if len( parts_phyloname ) >= 7:
-        return '_'.join( parts_phyloname[ 5: ] )
-    return phyloname
-
-
-def genus_species_from_full_id( full_id: str ) -> str:
-    """Genus_species from a full GIGANTIC sequence ID (… -n_<phyloname>)."""
-    if '-n_' not in full_id:
-        return ''
-    return genus_species_from_phyloname( full_id.split( '-n_' )[ -1 ] )
+def bare_header_id( header: str ) -> str:
+    """The bare column id of a self-documenting 'id (description)' header (text before ' (')."""
+    return header.split( ' (' )[ 0 ].strip()
 
 
 def phylum_from_phyloname( phyloname: str ) -> str:
@@ -475,25 +517,6 @@ def phylum_from_full_id( full_id: str ) -> str:
     if '-n_' not in full_id:
         return ''
     return phylum_from_phyloname( full_id.split( '-n_' )[ -1 ] )
-
-
-def build_header_index( header_line: str ) -> dict:
-    """
-    Map self-documenting header IDs to column indices. A GIGANTIC header column
-    looks like 'Match_Start (residue start position)'; the header_ID is the text
-    before ' ('. Returns { header_ID : index }.
-    """
-    header_ids___indices = {}
-    parts_header_line = header_line.rstrip( '\n' ).split( '\t' )
-    for index, column in enumerate( parts_header_line ):
-        header_id = column.split( ' (' )[ 0 ].strip()
-        header_ids___indices[ header_id ] = index
-    return header_ids___indices
-
-
-def bare_header_id( header: str ) -> str:
-    """The bare column id of a self-documenting 'id (description)' header (text before ' (')."""
-    return header.split( ' (' )[ 0 ].strip()
 
 
 def load_group_attributes( workflow_root: Path, config: dict, reserved_header_ids: set, override_group_attributes = None ):

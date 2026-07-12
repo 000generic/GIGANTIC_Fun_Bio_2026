@@ -180,7 +180,7 @@ def main():
 
     output_dir = Path( args.output_dir ) / "1-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_path = output_dir / f"1_ai-{group_set_label}-sequence_group_membership.tsv"
+    output_path = U.membership_output_path( Path( args.output_dir ), group_set_label )
 
     header = (
         "SequenceGroup_ID (identifier of the sequence group from the producer)\t"

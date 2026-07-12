@@ -63,13 +63,13 @@ subproject, not a block inside `trees_species` — the foundation stays pure-ups
 
 ```
 sequence_groups_X_species/
-├── BLOCK_resolve_groups/
-│   └── workflow-COPYME-resolve_groups/   # the workflow (copy to a RUN dir to run)
+├── BLOCK_sequence_groups/
+│   └── workflow-COPYME-sequence_groups/   # the workflow (copy to a RUN dir to run)
 ├── output_to_input/<group_set_label>/    # published overlays for downstream
 └── upload_to_server/                     # curated overlays for the GIGANTIC server
 ```
 
-Run by copying `workflow-COPYME-resolve_groups/` to a `workflow-RUN_N-resolve_groups/`,
+Run by copying `workflow-COPYME-sequence_groups/` to a `workflow-RUN_N-sequence_groups/`,
 editing `START_HERE-user_config.yaml` (group set, producer, inputs), and running
 `bash RUN-workflow.sh`. One run resolves one group set, namespaced by
 `group_set_label` (e.g. `species70_X_OrthoHMM`).

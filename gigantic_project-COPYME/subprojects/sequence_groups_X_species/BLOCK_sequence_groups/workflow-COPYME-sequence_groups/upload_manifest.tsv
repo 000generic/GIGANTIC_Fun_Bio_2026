@@ -1,4 +1,4 @@
-# GIGANTIC upload_manifest.tsv — sequence_groups_X_species / BLOCK_resolve_groups
+# GIGANTIC upload_manifest.tsv — sequence_groups_X_species / BLOCK_sequence_groups
 # ============================================================================
 # Publishes the species-tree overlay of EVERY producer's sequence-group set (ONE
 # run resolves all producers under OUTPUT_pipeline/<group_set_label>/): the
@@ -13,7 +13,7 @@
 #
 # Build with (from the subproject root):  bash RUN-update_upload_to_server.sh
 # Published files land at:
-#   ../../upload_to_server/BLOCK_resolve_groups/workflow-RUN_*/<group_set_label>/N-output/
+#   ../../upload_to_server/BLOCK_sequence_groups/workflow-RUN_*/<group_set_label>/N-output/
 #
 # This is a COPYME template; copy it into the canonical workflow-RUN_* dir to publish.
 # ============================================================================

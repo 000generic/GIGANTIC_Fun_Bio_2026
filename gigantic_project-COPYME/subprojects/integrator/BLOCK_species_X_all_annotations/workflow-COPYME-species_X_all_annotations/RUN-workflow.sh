@@ -168,6 +168,10 @@ echo "  Run Label   : ${RUN_LABEL}"
 echo "  Species Set : ${SPECIES_SET}"
 echo ""
 
+INTEGRATOR_AI="${SCRIPT_DIR}/../../ai"
+mkdir -p OUTPUT_pipeline
+python3 "${INTEGRATOR_AI}/write_workflow_run_timestamp.py" --output-pipeline OUTPUT_pipeline
+
 # ============================================================================
 # Run NextFlow pipeline
 # ============================================================================
@@ -216,26 +220,15 @@ echo ""
 echo "Creating symlinks for downstream consumers..."
 
 SHARED_DIR="../../output_to_input/BLOCK_species_X_all_annotations/${RUN_LABEL}"
+find "${SHARED_DIR}" -mindepth 1 -delete 2>/dev/null || true
 mkdir -p "${SHARED_DIR}"
-
-# Remove stale symlinks from previous runs (directory + file symlinks)
-find "${SHARED_DIR}" -maxdepth 1 -type l -exec rm -f {} + 2>/dev/null || true
-
-# Relative path from SHARED_DIR (= .../<run_label>/) back to this workflow's OUTPUT_pipeline
-REL="../../../BLOCK_species_X_all_annotations/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline"
-
-if [ -d "OUTPUT_pipeline/1-output/_shared" ]; then
-    ln -sfn "${REL}/1-output/_shared" "${SHARED_DIR}/_shared"
-fi
-
-for structure_dir in OUTPUT_pipeline/2-output/structure_*; do
-    [ -d "${structure_dir}" ] || continue
-    structure_name="$(basename "${structure_dir}")"
-    ln -sfn "${REL}/2-output/${structure_name}" "${SHARED_DIR}/${structure_name}"
-done
-
-SYMLINK_COUNT=$(find "${SHARED_DIR}" -maxdepth 1 -type l 2>/dev/null | wc -l)
-echo "  output_to_input/BLOCK_species_X_all_annotations/${RUN_LABEL}/ -> ${SYMLINK_COUNT} directory symlinks created"
+python3 "${INTEGRATOR_AI}/link_stable_output_to_input_symlinks.py" \
+    --output-pipeline OUTPUT_pipeline \
+    --shared-dir "${SHARED_DIR}" \
+    --workflow-relative "../../../BLOCK_species_X_all_annotations/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline" \
+    --preserve-subdirs --strip-stage-prefix
+SYMLINK_COUNT=$(find "${SHARED_DIR}" -type l 2>/dev/null | wc -l)
+echo "  output_to_input/BLOCK_species_X_all_annotations/${RUN_LABEL}/ -> ${SYMLINK_COUNT} symlinks created"
 
 echo ""
 echo "========================================================================"

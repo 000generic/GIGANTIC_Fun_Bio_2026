@@ -168,6 +168,10 @@ echo "  Run Label   : ${RUN_LABEL}"
 echo "  Species Set : ${SPECIES_SET}"
 echo ""
 
+INTEGRATOR_AI="${SCRIPT_DIR}/../../ai"
+mkdir -p OUTPUT_pipeline
+python3 "${INTEGRATOR_AI}/write_workflow_run_timestamp.py" --output-pipeline OUTPUT_pipeline
+
 # ============================================================================
 # Run NextFlow pipeline
 # ============================================================================
@@ -217,21 +221,14 @@ echo ""
 echo "Creating symlinks for downstream consumers..."
 
 SHARED_DIR="../../output_to_input/BLOCK_ambiguous_nodes_X_annogroups/${RUN_LABEL}"
+find "${SHARED_DIR}" -mindepth 1 -delete 2>/dev/null || true
 mkdir -p "${SHARED_DIR}"
-
-# Remove stale symlinks from previous runs (then prune empty dirs)
-find "${SHARED_DIR}" -type l -delete 2>/dev/null || true
-find "${SHARED_DIR}" -mindepth 1 -type d -empty -delete 2>/dev/null || true
-
-while IFS= read -r real_file; do
-    rel="${real_file#OUTPUT_pipeline/}"   # e.g. 2-output/pfam/all/file.tsv
-    rel="${rel#[0-9]-output/}"            # e.g. pfam/all/file.tsv  (drop the N-output prefix)
-    dest="${SHARED_DIR}/${rel}"
-    mkdir -p "$(dirname "${dest}")"
-    ln -srf "${real_file}" "${dest}"
-done < <(find OUTPUT_pipeline/1-output OUTPUT_pipeline/2-output -type f -name '*.tsv' 2>/dev/null)
-
-SYMLINK_COUNT=$(find "${SHARED_DIR}" -name "*.tsv" -type l 2>/dev/null | wc -l)
+python3 "${INTEGRATOR_AI}/link_stable_output_to_input_symlinks.py" \
+    --output-pipeline OUTPUT_pipeline \
+    --shared-dir "${SHARED_DIR}" \
+    --workflow-relative "../../../BLOCK_ambiguous_nodes_X_annogroups/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline" \
+    --preserve-subdirs --strip-stage-prefix
+SYMLINK_COUNT=$(find "${SHARED_DIR}" -type l 2>/dev/null | wc -l)
 echo "  output_to_input/BLOCK_ambiguous_nodes_X_annogroups/${RUN_LABEL}/ -> ${SYMLINK_COUNT} symlinks created"
 
 echo ""

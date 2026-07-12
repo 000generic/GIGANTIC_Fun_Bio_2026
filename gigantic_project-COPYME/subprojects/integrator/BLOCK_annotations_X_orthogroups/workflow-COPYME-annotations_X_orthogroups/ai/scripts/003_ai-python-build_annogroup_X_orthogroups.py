@@ -183,7 +183,7 @@ def main():
     input_map_path = input_source_dir / f"2_ai-{annotation_source}-annogroup_map.tsv"
     input_membership_path = input_source_dir / f"2_ai-{annotation_source}-annogroup_membership.tsv"
 
-    input_composition_path = Path( args.output_dir ) / "1-output" / "1_ai-orthogroups-species_composition.tsv"
+    input_composition_path = U.resolve_composition_table_path( Path( args.output_dir ) )
 
     if not input_composition_path.is_file():
         print( f"CRITICAL ERROR: composition table not found: {input_composition_path}", file = sys.stderr )
@@ -212,7 +212,7 @@ def main():
 
     output_dir = Path( args.output_dir ) / "3-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_table_path = output_dir / "3_ai-annogroups_X_orthogroups.tsv"
+    output_table_path = U.timestamped_output_path( output_dir, "3_ai-annogroups_X_orthogroups", Path( args.output_dir ) )
 
     header_columns = [
         "Annogroup_ID (canonical annogroup identifier from the annogroups subproject)",

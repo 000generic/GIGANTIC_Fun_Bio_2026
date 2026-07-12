@@ -26,9 +26,9 @@ Outputs (4-output/):
   composite_clades_detail_tables/4_ai-<label>-composite_clades-<cc_id>.tsv
         (rows = matching groups; columns = member SEQUENCE identifiers per relevant clade)
         When config declares annotation_index, each row ALSO carries, right after
-        SequenceGroup_ID, the distinct annotation identifiers + names aggregated over
-        ALL member sequences of the group, one <mode>_Identifiers/<mode>_Names pair per
-        mode (PFAM, PANTHER, GO, Gene_Families, Gene_Groups) from the Script 006 index.
+        SequenceGroup_ID, four columns per integrator catalog annotation type
+        (Species_Count, Sequence_Count, Identifiers, Names) aggregated over ALL
+        member sequences of the group, from the Script 006 index.
 
 Fail-fast (§36): exits 1 if inputs / config / manifest are missing or invalid, or if
 annotation_index is configured but the Script 006 index is missing.
@@ -42,10 +42,6 @@ from pathlib import Path
 sys.path.insert( 0, str( Path( __file__ ).parent ) )
 import utils_sequence_groups as U
 
-# Identifiers use the bare comma (§34); the aligned *_Names cells use ' // ' because
-# names carry commas (must match Script 006's annotation index).
-NAME_DELIM = ' // '
-
 
 def load_annotation_index( index_path: Path, member_sequences: set ):
     """
@@ -53,11 +49,11 @@ def load_annotation_index( index_path: Path, member_sequences: set ):
 
     Returns ( annotation_modes, sequences___mode_pairs ):
         annotation_modes         ordered list of modes (from the index header's
-                                 '<mode>_Identifiers' columns), e.g. [ PFAM, PANTHER, ... ]
+                                 '<mode>_Identifiers' columns), e.g. [ Pfam, GO, ... ]
         sequences___mode_pairs   { sequence_id: { mode: [ ( identifier, name ), ... ] } }
     Only sequences present in member_sequences (and carrying >=1 annotation) are kept.
     """
-    # Sequence_Identifier (...)	PFAM_Identifiers (...)	PFAM_Names (...)	PANTHER_Identifiers (...)	...
+    # Sequence_Identifier (...)	Pfam_Identifiers (...)	Pfam_Names (...)	...
     with open( index_path, 'r' ) as input_index:
         header_ids___indices = U.build_header_index( input_index.readline() )
         index_sequence = header_ids___indices[ "Sequence_Identifier" ]
@@ -86,7 +82,7 @@ def load_annotation_index( index_path: Path, member_sequences: set ):
                 if not identifiers_cell:
                     continue
                 identifiers = identifiers_cell.split( U.DELIM )
-                names = names_cell.split( NAME_DELIM ) if names_cell else [ '' ] * len( identifiers )
+                names = names_cell.split( U.NAME_DELIM ) if names_cell else [ '' ] * len( identifiers )
                 if len( names ) != len( identifiers ):
                     names = ( names + [ '' ] * len( identifiers ) )[ : len( identifiers ) ]
                 mode_pairs[ mode ] = list( zip( identifiers, names ) )
@@ -97,27 +93,41 @@ def load_annotation_index( index_path: Path, member_sequences: set ):
 
 def build_group_annotation_cells( annotation_modes, group_order, groups___sequences, sequences___mode_pairs ):
     """
-    Per sequence group, aggregate the DISTINCT annotation ( identifier, name ) pairs over
-    ALL of its member sequences, for each mode. Returns
-        { group_id: { mode: ( identifiers_cell, names_cell ) } }
-    identifiers_cell is comma delimited (sorted, distinct); names_cell is ' // ' delimited,
-    aligned to the identifiers.
+    Per sequence group, aggregate annotation data over ALL member sequences for each mode.
+    Returns { group_id: { mode: ( species_count, sequence_count, identifiers_cell, names_cell ) } }.
     """
+    modes___names_blank = { prefix: names_blank for ( prefix, label, names_blank ) in U.ANNOTATION_TYPE_SPECS }
     groups___mode_cells = {}
     for group_id in group_order:
         modes___ids_names = { mode: {} for mode in annotation_modes }
+        modes___sequences = { mode: set() for mode in annotation_modes }
+        modes___species = { mode: set() for mode in annotation_modes }
         for ( sequence_id, genus_species ) in groups___sequences[ group_id ]:
             mode_pairs = sequences___mode_pairs.get( sequence_id )
             if not mode_pairs:
                 continue
             for mode, pairs in mode_pairs.items():
+                if not pairs:
+                    continue
+                modes___sequences[ mode ].add( sequence_id )
+                modes___species[ mode ].add( genus_species )
                 for ( identifier, name ) in pairs:
                     modes___ids_names[ mode ][ identifier ] = name
         mode_cells = {}
         for mode in annotation_modes:
             identifiers = sorted( modes___ids_names[ mode ].keys() )
-            names = [ modes___ids_names[ mode ][ identifier ] for identifier in identifiers ]
-            mode_cells[ mode ] = ( U.DELIM.join( identifiers ), NAME_DELIM.join( names ) )
+            names_blank = modes___names_blank.get( mode, False )
+            if names_blank:
+                names_cell = ''
+            else:
+                names = [ modes___ids_names[ mode ][ identifier ] for identifier in identifiers ]
+                names_cell = U.NAME_DELIM.join( names )
+            mode_cells[ mode ] = (
+                str( len( modes___species[ mode ] ) ),
+                str( len( modes___sequences[ mode ] ) ),
+                U.DELIM.join( identifiers ),
+                names_cell,
+            )
         groups___mode_cells[ group_id ] = mode_cells
     return groups___mode_cells
 
@@ -155,7 +165,7 @@ def main():
         override_group_attributes = args.group_attributes )
     empty_carried = [ '' ] * len( carried_headers )
 
-    membership_path = output_base / "1-output" / f"1_ai-{group_set_label}-sequence_group_membership.tsv"
+    membership_path = U.membership_output_path( output_base, group_set_label )
     mappings_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "clade_species_mappings" ] )
     manifest_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "composite_clades_manifest" ] )
     for required in ( membership_path, mappings_path, manifest_path ):
@@ -214,7 +224,11 @@ def main():
     output_dir.mkdir( parents = True, exist_ok = True )
 
     # ---- Deliverable 1: per-group table (one column per algorithm) ----------
-    per_group_path = output_dir / f"4_ai-{group_set_label}-composite_clades-per_group.tsv"
+    per_group_path = U.timestamped_output_path(
+        output_dir,
+        f"4_ai-{group_set_label}-composite_clades-per_group",
+        output_base,
+    )
     per_group_header = (
         [ "SequenceGroup_ID (identifier of the sequence group from the producer)" ]
         + carried_headers
@@ -237,7 +251,11 @@ def main():
             output_per_group.write( '\t'.join( [ sequence_group_id ] + carried + cells ) + '\n' )
 
     # ---- Deliverable 2: summary counts --------------------------------------
-    summary_path = output_dir / f"4_ai-{group_set_label}-composite_clades-summary_counts.tsv"
+    summary_path = U.timestamped_output_path(
+        output_dir,
+        f"4_ai-{group_set_label}-composite_clades-summary_counts",
+        output_base,
+    )
     summary_header = [
         "Composite_Clade (composite clade identifier cc_<name or components>-<algorithm>)",
         "Algorithm (exact, absent, core_urclade, or core_early_clade)",
@@ -250,16 +268,19 @@ def main():
             count = len( cc_id___groups.get( entry[ "cc_id" ], [] ) )
             output_summary.write( f"{entry[ 'cc_id' ]}\t{entry[ 'algorithm' ]}\t{entry[ 'definition' ]}\t{count}\n" )
 
-    # ---- Annotation columns for the detail tables (Leonid 2026-07) ----------
-    # Per sequence group, the distinct annotation identifiers + names aggregated over
-    # ALL member sequences, for each mode (PFAM/PANTHER/GO/Gene_Families/Gene_Groups),
-    # from the cross-producer index (Script 006). Required when config declares
-    # annotation_index; otherwise the detail tables keep their prior schema.
+    # ---- Annotation columns for the detail tables ---------------------------
+    # Per sequence group, four columns per integrator catalog annotation type
+    # (Species_Count, Sequence_Count, Identifiers, Names) from Script 006.
     annotation_index_configured = bool( config.get( "annotation_index" ) )
     annotation_modes = []
     groups___annotation_cells = {}
     if annotation_index_configured:
-        annotation_index_path = output_base.parent / "annotation_index" / "6_ai-sequence_annotation_index.tsv"
+        pipeline_root = U.find_output_pipeline_root( output_base )
+        annotation_index_path = U.timestamped_output_path(
+            pipeline_root / "annotation_index",
+            "6_ai-sequence_annotation_index",
+            output_base,
+        )
         if not annotation_index_path.is_file():
             print( f"CRITICAL ERROR: annotation_index is configured but the index is missing: {annotation_index_path}\n"
                    f"Run Script 006 (build_annotation_index) before Script 004.", file = sys.stderr )
@@ -272,10 +293,11 @@ def main():
         print( f"[004 {group_set_label}] annotation index: {len( sequences___mode_pairs )} of {len( member_sequences )} "
                f"member sequences annotated across modes {annotation_modes}" )
 
+    specs___labels = { prefix: ( label, names_blank ) for ( prefix, label, names_blank ) in U.ANNOTATION_TYPE_SPECS }
     annotation_headers = []
     for mode in annotation_modes:
-        annotation_headers.append( f"{mode}_Identifiers (comma delimited distinct {mode} identifiers aggregated over ALL member sequences of this sequence group)" )
-        annotation_headers.append( f"{mode}_Names (' // ' delimited {mode} names aligned to {mode}_Identifiers)" )
+        label, names_blank = specs___labels.get( mode, ( mode, False ) )
+        annotation_headers.extend( U.annotation_type_header_columns( mode, label, names_blank ) )
     empty_annotation_cells = [ '' ] * len( annotation_headers )
 
     def annotation_cells_for( sequence_group_id ):
@@ -284,9 +306,10 @@ def main():
             return list( empty_annotation_cells )
         cells = []
         for mode in annotation_modes:
-            identifiers_cell, names_cell = mode_cells.get( mode, ( '', '' ) )
-            cells.append( identifiers_cell )
-            cells.append( names_cell )
+            species_count, sequence_count, identifiers_cell, names_cell = mode_cells.get(
+                mode, ( '0', '0', '', '' )
+            )
+            cells.extend( [ species_count, sequence_count, identifiers_cell, names_cell ] )
         return cells
 
     # ---- Deliverable 3: one detail table per manifest composite clade -------
@@ -297,7 +320,11 @@ def main():
         cc_id = entry[ "cc_id" ]
         detail_columns = entry[ "detail_columns" ]
         groups = sorted( cc_id___groups.get( cc_id, [] ) )
-        detail_path = detail_dir / f"4_ai-{group_set_label}-composite_clades-{cc_id}.tsv"
+        detail_path = U.timestamped_output_path(
+            detail_dir,
+            f"4_ai-{group_set_label}-composite_clades-{cc_id}",
+            output_base,
+        )
         detail_header = (
             [ "SequenceGroup_ID (sequence group identifier; matches the composite clade)" ]
             + annotation_headers

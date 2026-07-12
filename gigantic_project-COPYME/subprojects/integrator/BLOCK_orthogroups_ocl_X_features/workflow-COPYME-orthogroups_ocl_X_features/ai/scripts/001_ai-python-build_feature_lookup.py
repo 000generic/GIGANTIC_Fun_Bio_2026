@@ -238,7 +238,8 @@ def main():
     # ------------------------------------------------------------------
     # Write the lookup table
     # ------------------------------------------------------------------
-    output_lookup_path = output_dir / "1_ai-gene_feature_lookup.tsv"
+    output_base = Path( args.output_dir )
+    output_lookup_path = U.timestamped_output_path( output_dir, "1_ai-gene_feature_lookup", output_base )
     header_columns = [
         "Full_GIGANTIC_Gene_ID (complete GIGANTIC sequence identifier g_..-t_..-p_..-n_phyloname)",
         "Genus_Species (Genus_species parsed from the phyloname n_ field of the sequence identifier)",
@@ -318,7 +319,7 @@ def main():
     # Write per-species availability summary (documents union + flags)
     # ------------------------------------------------------------------
     all_species = sorted( dark_species | hotspot_species | secretome_species | evidence_species )
-    output_availability_path = output_dir / "1_ai-feature_availability_summary.tsv"
+    output_availability_path = U.timestamped_output_path( output_dir, "1_ai-feature_availability_summary", output_base )
     availability_header = [
         "Genus_Species (species present in at least one feature source)",
         "Dark_Available (True if a dark_proteome file exists for this species)",

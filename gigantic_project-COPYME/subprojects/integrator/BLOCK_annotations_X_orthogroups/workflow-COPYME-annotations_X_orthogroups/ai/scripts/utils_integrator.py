@@ -17,7 +17,31 @@ All scripts in this workflow import this module via:
 """
 
 from pathlib import Path
+import sys
 import yaml
+
+_INTEGRATOR_AI = Path( __file__ ).resolve().parents[ 4 ] / "ai"
+if str( _INTEGRATOR_AI ) not in sys.path:
+    sys.path.insert( 0, str( _INTEGRATOR_AI ) )
+
+import utils_integrator_shared as _SHARED
+
+find_output_pipeline_root = _SHARED.find_output_pipeline_root
+resolve_workflow_run_timestamp_suffix = _SHARED.resolve_workflow_run_timestamp_suffix
+build_timestamped_filename = _SHARED.build_timestamped_filename
+resolve_timestamped_output_path = _SHARED.resolve_timestamped_output_path
+
+
+def timestamped_output_path( output_dir: Path, stem: str, output_base: Path, extension: str = '.tsv' ) -> Path:
+    """Build a timestamped archival path under output_dir using the shared run suffix (§65)."""
+    pipeline_root = find_output_pipeline_root( output_base )
+    suffix = resolve_workflow_run_timestamp_suffix( pipeline_root )
+    return output_dir / build_timestamped_filename( stem, suffix, extension )
+
+
+def resolve_composition_table_path( output_base: Path ) -> Path:
+    """Script 001 composition table (timestamped filename, shared run suffix)."""
+    return resolve_timestamped_output_path( output_base / "1-output", "1_ai-orthogroups-species_composition", output_base )
 
 # In-column multi-value delimiter — bare comma per gigantic_conventions §34.
 DELIM = ','

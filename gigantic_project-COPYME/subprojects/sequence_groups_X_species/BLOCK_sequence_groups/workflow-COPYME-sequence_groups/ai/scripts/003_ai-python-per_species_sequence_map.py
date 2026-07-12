@@ -53,7 +53,7 @@ def main():
         override_group_attributes = args.group_attributes )
     empty_carried = [ '' ] * len( carried_headers )
 
-    membership_path = output_base / "1-output" / f"1_ai-{group_set_label}-sequence_group_membership.tsv"
+    membership_path = U.membership_output_path( output_base, group_set_label )
     if not membership_path.is_file():
         print( f"CRITICAL ERROR: required file not found: {membership_path}", file = sys.stderr )
         sys.exit( 1 )
@@ -90,7 +90,11 @@ def main():
 
     output_dir = output_base / "3-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_path = output_dir / f"3_ai-{group_set_label}-sequences_per_species.tsv"
+    output_path = U.timestamped_output_path(
+        output_dir,
+        f"3_ai-{group_set_label}-sequences_per_species",
+        output_base,
+    )
 
     header = (
         [ "SequenceGroup_ID (identifier of the sequence group from the producer)" ]

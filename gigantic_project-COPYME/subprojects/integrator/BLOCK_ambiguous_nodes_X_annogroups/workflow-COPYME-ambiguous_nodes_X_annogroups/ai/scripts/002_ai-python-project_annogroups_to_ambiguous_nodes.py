@@ -101,7 +101,11 @@ def project_source( workflow_root: Path, config: dict, source: str, output_base:
             suffix = scope_suffix( scope_name, scope_flags[ "one_structure_id" ] )
             scope_dir = output_base / "2-output" / source / scope_name
             scope_dir.mkdir( parents = True, exist_ok = True )
-            output_path = scope_dir / f"2_ai-{source}-ambiguous_nodes_X_annogroups-{suffix}.tsv"
+            output_path = U.timestamped_output_path(
+                scope_dir,
+                f"2_ai-{source}-ambiguous_nodes_X_annogroups-{suffix}",
+                output_base,
+            )
             output_file = open( output_path, 'w' )
             output_file.write( '\t'.join( header_columns[ i ] for i in selected_indices ) + '\n' )
             active_scopes.append( ( scope_name, output_file, selected_indices, output_path, len( clade_indices ) ) )

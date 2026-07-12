@@ -1,9 +1,9 @@
 #!/bin/bash
-# AI: Claude Code | Opus 4.8 | 2026 June 28 | Purpose: Run the sequence_groups_X_species resolve_groups workflow (local or SLURM via config)
+# AI: Claude Code | Opus 4.8 | 2026 June 28 | Purpose: Run the sequence_groups_X_species sequence_groups workflow (local or SLURM via config)
 # Human: Eric Edsinger
 
 ################################################################################
-# GIGANTIC sequence_groups_X_species - BLOCK_resolve_groups
+# GIGANTIC sequence_groups_X_species - BLOCK_sequence_groups
 ################################################################################
 #
 # PURPOSE:
@@ -27,7 +27,7 @@
 ################################################################################
 
 echo "========================================================================"
-echo "GIGANTIC sequence_groups_X_species - resolve_groups"
+echo "GIGANTIC sequence_groups_X_species - sequence_groups"
 echo "========================================================================"
 echo "Started: $(date)"
 echo ""
@@ -58,7 +58,7 @@ if [ "${EXECUTION_MODE}" == "slurm" ] && [ -z "${SLURM_JOB_ID}" ]; then
     SLURM_ACCOUNT=$(read_config "slurm_account" "")
     SLURM_QOS=$(read_config "slurm_qos" "")
     mkdir -p slurm_logs
-    SBATCH_ARGS="--job-name=resolve_groups --cpus-per-task=${SLURM_CPUS} --mem=${SLURM_MEM}gb --time=${SLURM_TIME}:00:00 --output=slurm_logs/resolve_groups-%j.log"
+    SBATCH_ARGS="--job-name=sequence_groups --cpus-per-task=${SLURM_CPUS} --mem=${SLURM_MEM}gb --time=${SLURM_TIME}:00:00 --output=slurm_logs/sequence_groups-%j.log"
     [ -n "${SLURM_ACCOUNT}" ] && SBATCH_ARGS="${SBATCH_ARGS} --account=${SLURM_ACCOUNT}"
     [ -n "${SLURM_QOS}" ] && SBATCH_ARGS="${SBATCH_ARGS} --qos=${SLURM_QOS}"
     echo "Submitting with: sbatch ${SBATCH_ARGS}"
@@ -71,7 +71,7 @@ fi
 echo ""
 
 # ---- conda env (on-demand) -------------------------------------------------
-ENV_NAME="aiG-sequence_groups_X_species-resolve_groups"
+ENV_NAME="aiG-sequence_groups_X_species-sequence_groups"
 ENV_YML="ai/conda_environment.yml"
 module load conda 2>/dev/null || true
 if ! command -v conda &> /dev/null; then
@@ -91,6 +91,11 @@ echo ""
 [ -f "START_HERE-user_config.yaml" ] || { echo "ERROR: START_HERE-user_config.yaml not found"; exit 1; }
 echo "Configuration: ${PRODUCER_COUNT} producer(s) species_set=${SPECIES_SET}"
 echo ""
+
+# ---- run timestamp pointer (§65 dual-layer; shared across all producers) ----
+INTEGRATOR_AI="${SCRIPT_DIR}/../../../integrator/ai"
+mkdir -p OUTPUT_pipeline
+python3 "${INTEGRATOR_AI}/write_workflow_run_timestamp.py" --output-pipeline OUTPUT_pipeline
 
 # ---- run NextFlow ----------------------------------------------------------
 RESUME=$(read_config "resume" "false")
@@ -129,33 +134,31 @@ while IFS=$'\t' read -r PRODUCER GROUP_SET_LABEL; do
     [ -n "${GROUP_SET_LABEL}" ] || continue
     OUT_LABEL_DIR="OUTPUT_pipeline/${GROUP_SET_LABEL}"
     SHARED_DIR="../../output_to_input/${PRODUCER}/${GROUP_SET_LABEL}"
-    # replace stale state for this group set (output_to_input holds only symlinks)
-    find "${SHARED_DIR}" -mindepth 1 -maxdepth 1 -name '*.tsv' -type l -delete 2>/dev/null
-    rm -rf "${SHARED_DIR}/composite_clades_detail_tables" 2>/dev/null
+    find "${SHARED_DIR}" -mindepth 1 -delete 2>/dev/null || true
     mkdir -p "${SHARED_DIR}"
-    SYMLINK_COUNT=0
-    for sub in 2-output 3-output 4-output; do
-        for f in "${OUT_LABEL_DIR}/${sub}"/*.tsv; do
-            [ -f "$f" ] || continue
-            ln -sf "../../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/$f" "${SHARED_DIR}/$(basename "$f")"
-            SYMLINK_COUNT=$((SYMLINK_COUNT+1))
-        done
-    done
-    # composite detail tables (a subdir)
-    if [ -d "${OUT_LABEL_DIR}/4-output/composite_clades_detail_tables" ]; then
-        mkdir -p "${SHARED_DIR}/composite_clades_detail_tables"
-        for f in "${OUT_LABEL_DIR}/4-output/composite_clades_detail_tables"/*.tsv; do
-            [ -f "$f" ] || continue
-            ln -sf "../../../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/$f" "${SHARED_DIR}/composite_clades_detail_tables/$(basename "$f")"
-            SYMLINK_COUNT=$((SYMLINK_COUNT+1))
-        done
-    fi
+    python3 "${INTEGRATOR_AI}/link_stable_output_to_input_symlinks.py" \
+        --output-pipeline "OUTPUT_pipeline/${GROUP_SET_LABEL}" \
+        --shared-dir "${SHARED_DIR}" \
+        --workflow-relative "../../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/${GROUP_SET_LABEL}" \
+        --preserve-subdirs
+    SYMLINK_COUNT=$(find "${SHARED_DIR}" -type l 2>/dev/null | wc -l)
     echo "  output_to_input/${PRODUCER}/${GROUP_SET_LABEL}/ -> ${SYMLINK_COUNT} symlinks"
 done <<< "${PRODUCER_SPECS}"
 
+if [ -d "OUTPUT_pipeline/annotation_index" ]; then
+    ANNO_SHARED="../../output_to_input/annotation_index"
+    find "${ANNO_SHARED}" -mindepth 1 -delete 2>/dev/null || true
+    mkdir -p "${ANNO_SHARED}"
+    python3 "${INTEGRATOR_AI}/link_stable_output_to_input_symlinks.py" \
+        --output-pipeline OUTPUT_pipeline/annotation_index \
+        --shared-dir "${ANNO_SHARED}" \
+        --workflow-relative "../../../${BLOCK_DIR_NAME}/${WORKFLOW_DIR_NAME}/OUTPUT_pipeline/annotation_index"
+    echo "  output_to_input/annotation_index/ -> $(find "${ANNO_SHARED}" -type l 2>/dev/null | wc -l) symlinks"
+fi
+
 echo ""
 echo "========================================================================"
-echo "SUCCESS! sequence_groups_X_species resolve_groups complete."
+echo "SUCCESS! sequence_groups_X_species sequence_groups complete."
 echo "  Per producer, under OUTPUT_pipeline/<group_set_label>/:"
 echo "    1-output/  standard membership"
 echo "    2-output/  deconvolution (sequence + species counts per clade)"

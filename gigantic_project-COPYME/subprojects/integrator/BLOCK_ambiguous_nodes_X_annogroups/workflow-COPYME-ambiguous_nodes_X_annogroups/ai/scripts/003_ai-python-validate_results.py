@@ -122,8 +122,11 @@ def main():
         for scope_name in ( "all", "one", "some" ):
             if not scope_flags[ scope_name ]:
                 continue
-            scope_path = ( output_base / "2-output" / source / scope_name
-                           / f"2_ai-{source}-ambiguous_nodes_X_annogroups-{suffix_by_scope[ scope_name ]}.tsv" )
+            scope_path = U.resolve_timestamped_output_path(
+                output_base / "2-output" / source / scope_name,
+                f"2_ai-{source}-ambiguous_nodes_X_annogroups-{suffix_by_scope[ scope_name ]}",
+                output_base,
+            )
             if not scope_path.is_file():
                 fail( report_lines, f"{source}/{scope_name}: projected table missing ({scope_path})", report_path )
 
@@ -154,7 +157,11 @@ def main():
             report_lines.append( f"  [OK] {scope_name}: {len( projection_id_set )} ambiguous nodes x {scope_rows} annogroups" )
 
         # Registry consistency.
-        registry_path = output_base / "1-output" / source / f"1_ai-{source}-ambiguous_node_registry.tsv"
+        registry_path = U.resolve_timestamped_output_path(
+            output_base / "1-output" / source,
+            f"1_ai-{source}-ambiguous_node_registry",
+            output_base,
+        )
         if not registry_path.is_file():
             fail( report_lines, f"{source}: ambiguous_node_registry missing", report_path )
         registry_ids = set()

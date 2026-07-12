@@ -31,7 +31,7 @@ def main():
     parser.add_argument( '--output_dir', required = True )
     args = parser.parse_args()
 
-    input_composition_path = Path( args.output_dir ) / "1-output" / "1_ai-orthogroups-species_composition.tsv"
+    input_composition_path = U.resolve_composition_table_path( Path( args.output_dir ) )
     if not input_composition_path.is_file():
         print( f"CRITICAL ERROR: composition table not found: {input_composition_path}", file = sys.stderr )
         print( "  Script 001 (classify_orthogroups) must run before this script.", file = sys.stderr )
@@ -39,7 +39,7 @@ def main():
 
     output_dir = Path( args.output_dir ) / "2-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    output_table_path = output_dir / "2_ai-nonbilaterian_metazoan_orthogroups.tsv"
+    output_table_path = U.timestamped_output_path( output_dir, "2_ai-nonbilaterian_metazoan_orthogroups", Path( args.output_dir ) )
 
     header_columns = [
         "Orthogroup_ID (orthogroup identifier from the orthogroups subproject)",

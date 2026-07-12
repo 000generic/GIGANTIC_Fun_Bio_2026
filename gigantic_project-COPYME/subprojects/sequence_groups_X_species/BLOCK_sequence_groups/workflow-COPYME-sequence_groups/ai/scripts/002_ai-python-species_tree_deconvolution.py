@@ -206,7 +206,7 @@ def main():
     empty_carried = [ '' ] * len( carried_headers )
 
     output_base = Path( args.output_dir )
-    membership_path = output_base / "1-output" / f"1_ai-{group_set_label}-sequence_group_membership.tsv"
+    membership_path = U.membership_output_path( output_base, group_set_label )
     clade_map_path = U.resolve_input_path( workflow_root, config[ "inputs" ][ "clade_species_mappings" ] )
     for required in ( membership_path, clade_map_path ):
         if not required.is_file():
@@ -279,13 +279,21 @@ def main():
     union_files = {}
     structures___files = { unit: {} for unit in units }
     for unit in units:
-        union_path = output_dir / f"2_ai-{group_set_label}-tree_counts-{unit}-all_structures.tsv"
+        union_path = U.timestamped_output_path(
+            output_dir,
+            f"2_ai-{group_set_label}-tree_counts-{unit}-all_structures",
+            output_base,
+        )
         union_file = open( union_path, 'w' )
         union_file.write( '\t'.join( fixed_header + [ clade_header( clade, unit ) for clade in union_ordered_clades ] ) + '\n' )
         union_files[ unit ] = union_file
         if emit_per_structure:
             for structure in all_structures:
-                per_structure_path = per_structure_dir / f"2_ai-{group_set_label}-tree_counts-{unit}-{structure}.tsv"
+                per_structure_path = U.timestamped_output_path(
+                    per_structure_dir,
+                    f"2_ai-{group_set_label}-tree_counts-{unit}-{structure}",
+                    output_base,
+                )
                 output_file = open( per_structure_path, 'w' )
                 output_file.write( '\t'.join( fixed_header + [ clade_header( clade, unit ) for clade in structures___ordered_clades[ structure ] ] ) + '\n' )
                 structures___files[ unit ][ structure ] = output_file

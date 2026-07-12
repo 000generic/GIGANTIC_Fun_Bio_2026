@@ -1,9 +1,9 @@
-# GIGANTIC sequence_groups_X_species - BLOCK_resolve_groups environment
+# GIGANTIC sequence_groups_X_species - BLOCK_sequence_groups environment
 # AI: Claude Code | Opus 4.8 (1M context) | 2026 June 18
 # Human: Eric Edsinger
 # ====================================================================
 #
-# Per-BLOCK conda env scoped to BLOCK_resolve_groups (§28/§53 naming).
+# Per-BLOCK conda env scoped to BLOCK_sequence_groups (§28/§53 naming).
 # Created on-demand by RUN-workflow.sh via mamba (conda fallback).
 #
 # Pure-Python BLOCK (no external aligners/search tools) — it reads a producer's
@@ -18,9 +18,9 @@
 #
 # ACTIVATION:
 #   module load conda  # (HiPerGator/HPC only)
-#   conda activate aiG-sequence_groups_X_species-resolve_groups
+#   conda activate aiG-sequence_groups_X_species-sequence_groups
 
-name: aiG-sequence_groups_X_species-resolve_groups
+name: aiG-sequence_groups_X_species-sequence_groups
 
 channels:
   - conda-forge

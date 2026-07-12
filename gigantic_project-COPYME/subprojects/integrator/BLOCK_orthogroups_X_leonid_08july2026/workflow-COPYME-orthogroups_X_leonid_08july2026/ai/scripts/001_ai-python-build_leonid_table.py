@@ -567,10 +567,14 @@ def main():
     output_base = Path( args.output_dir )
     output_dir = output_base / "1-output"
     output_dir.mkdir( parents = True, exist_ok = True )
-    run_when = datetime.now()
-    table_filename = U.build_timestamped_table_filename( U.OUTPUT_TABLE_STEM, run_when )
+    _integrator_ai = Path( __file__ ).resolve().parents[ 4 ] / "ai"
+    if str( _integrator_ai ) not in sys.path:
+        sys.path.insert( 0, str( _integrator_ai ) )
+    import utils_integrator_shared as S
+    timestamp_suffix = S.resolve_workflow_run_timestamp_suffix( output_base )
+    table_filename = S.build_timestamped_filename( U.OUTPUT_TABLE_STEM, timestamp_suffix )
     output_path = output_dir / table_filename
-    print( f"[001] run timestamp suffix: {U.filename_timestamp_suffix( run_when )}" )
+    print( f"[001] run timestamp suffix: {timestamp_suffix}" )
 
     # ---- inputs exist? -----------------------------------------------------
     for required in ( orthogroups_path, clade_map_path ):
