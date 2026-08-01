@@ -9,7 +9,7 @@ phylogenomics. It is designed to be cloned from GitHub, copied into a renamed
 project directory, and then operated through AI assistant sessions rooted at
 that renamed project directory.
 
-The mantra: **you (the user) guide an AI; the AI does the work.** GIGANTIC's
+The mantra: **you guide AI - AI does the work!** GIGANTIC's
 structure, conventions, and documentation are built around that model.
 
 GIGANTIC use is built around a given project implemented through human-AI chat. It provides a framework of subprojects containing automated bioinformatic and phylogenetic workflows under the hood. It includes extensive documentation at every turn - READMEs for humans and AI_GUIDEs for AIs. For the non-expert user, it is intended as a wandering yet guided - often surprising & hopefully more fun than frustrating - research conversation to explore species, genomes, ideas, and data with an AI in chat. One where the human is guided and guides - and the AI acts. GIGANTIC floats you along in conversation - but with an exosuit grounded in sequence exploration - built to provide rigorous tools and methods in phylogenomics - and less excitingly but perhaps most critically - on-demand and behind the scenes documentation of chat as a record of research development and implementation, providing provenance in support of attribution, transparency, reproducibility, and publication. In this sense, a GIGANTIC project serves as a digital research notebook for comparative genomic and phylogenetic work - intended in the end to be archived and maintained no differently than a lab notebook at the bench.
