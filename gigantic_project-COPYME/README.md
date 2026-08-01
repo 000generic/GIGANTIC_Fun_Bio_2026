@@ -20,7 +20,7 @@ the GIGANTIC project template. Everything for your research project lives
 here: inputs, subprojects, workflows, outputs, and the complete record of
 how the work was done.
 
-The mantra: **you guide the AI; the AI does the work.** That includes the
+The mantra: **you guide AI - AI does the work!** That includes the
 documentation work. This project is set up so that every AI chat session
 becomes part of your scientific record automatically.
 
